@@ -18,6 +18,12 @@ name: Release bauen
 on:
   push:
     branches: [main]
+    # Reine Änderungen an Startseite und Dokumentation ändern das Programm nicht: kein neues Release.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "tools/startseite/**"
+      - "LICENSE"
   workflow_dispatch:
 
 permissions:
