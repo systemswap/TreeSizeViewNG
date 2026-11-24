@@ -46,7 +46,7 @@ Eine Zeile pro Ordner bzw. Datei, Trennzeichen und Dezimalzeichen passend zum Sy
 
 ## Herunterladen
 
-Unter **Releases** liegen fertige Pakete für Windows (`…-windows-x64.exe`) und Linux (`…-linux-x64.tar.gz`). Sie entstehen automatisch bei jedem Push auf `main` (`.github/workflows/release.yml`): Version = Haupt-/Nebenversion aus `<Version>` im csproj plus laufende Nummer, z. B. `v1.0.0`, `v1.0.1` … Für einen Sprung auf `1.1.x` nur `<Version>` im csproj ändern.
+Unter **Releases** liegen fertige Pakete für Windows (`…-windows-x64.exe`) und Linux (`…-linux-x64.tar.gz`). Sie entstehen automatisch bei jedem Push auf `main` (`.github/workflows/release.yml`): Version = Haupt-/Nebenversion aus `<Version>` im csproj plus laufende Nummer, die an das letzte Release anschließt, z. B. `v1.0.0`, `v1.0.1` … Für einen Sprung auf `1.1.x` nur `<Version>` im csproj ändern.
 
 Linux: entpacken und starten mit `tar -xzf TreeSizeViewNG-*-linux-x64.tar.gz && ./TreeSizeViewNG`.
 
