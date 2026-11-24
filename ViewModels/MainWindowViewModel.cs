@@ -7,6 +7,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Material.Icons.Avalonia;
+using TreeSizeViewNG.Localization;
 using TreeSizeViewNG.Models;
 using TreeSizeViewNG.Services;
 
@@ -20,7 +21,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string _folderPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private string _searchText = string.Empty;
     private decimal? _minimumSizeMb = 0m;
-    private string _statusText = "Bereit";
+    private string _statusText = Strings.Ready;
     private bool _isScanning;
     private bool _isExporting;
     private SortableTreeSource _source;
@@ -98,10 +99,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var node = GetExportNode();
             if (node is null)
-                return "Export: erst scannen";
+                return Strings.ExportNotYet;
             return ReferenceEquals(node, _root)
-                ? $"Export ab: {node.Name} (ganzer Scan)"
-                : $"Export ab: {node.Name}";
+                ? Strings.FormatExportFromWholeScan(node.Name)
+                : Strings.FormatExportFrom(node.Name);
         }
     }
 
@@ -120,8 +121,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public bool CanExpandOneLevel => !_disposed && _root is not null && _currentExpansionDepth < _maximumExpansionDepth;
     public bool CanCollapseOneLevel => !_disposed && _root is not null && _currentExpansionDepth > 0;
     public string ExpansionDepthText => _root is null
-        ? "Ebene –"
-        : $"Ebene {_currentExpansionDepth} / {_maximumExpansionDepth}";
+        ? Strings.LevelNone
+        : Strings.FormatLevel(_currentExpansionDepth, _maximumExpansionDepth);
 
     public string SearchText
     {
@@ -156,7 +157,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var selectedPath = FolderPath.Trim();
         if (selectedPath.Length == 0 || !Directory.Exists(selectedPath))
         {
-            StatusText = "Bitte einen gültigen Ordner auswählen.";
+            StatusText = Strings.PleaseChooseValidFolder;
             return;
         }
 
@@ -164,13 +165,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _scanCts = scanCts;
         IsScanning = true;
         NotifyButtonStates();
-        StatusText = "Scan wird gestartet …";
+        StatusText = Strings.ScanStarting;
 
         var progress = new Progress<ScanProgress>(p =>
         {
-            var skippedText = p.SkippedEntries > 0 ? $" · {p.SkippedEntries:N0} übersprungen" : string.Empty;
-            StatusText = $"{p.Files:N0} Dateien geprüft · {p.Folders:N0} Ordner · " +
-                         $"{SizeFormatter.Format(p.Bytes)} berücksichtigt{skippedText} · {p.CurrentPath}";
+            StatusText = Strings.FormatScanProgress(
+                p.Files, p.Folders, SizeFormatter.Format(p.Bytes), p.SkippedEntries, p.CurrentPath);
         });
 
         try
@@ -189,16 +189,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _maximumExpansionDepth = root.GetMaxDepth();
             _currentExpansionDepth = _maximumExpansionDepth;
             ApplyFilter();
-            StatusText = $"Fertig · {root.FileCount:N0} passende Dateien · " +
-                         $"{root.FolderCount:N0} Ordner · {root.SizeText}";
+            StatusText = Strings.FormatScanDone(root.FileCount, root.FolderCount, root.SizeText);
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Scan abgebrochen.";
+            StatusText = Strings.ScanCancelled;
         }
         catch (Exception ex)
         {
-            StatusText = $"Fehler: {ex.Message}";
+            StatusText = Strings.FormatError(ex.Message);
         }
         finally
         {
@@ -213,7 +212,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public void StopScan() => _scanCts?.Cancel();
 
-    public void ReportError(string message) => StatusText = $"Fehler: {message} · Details: {ErrorLog.FilePath}";
+    public void ReportError(string message) => StatusText = Strings.FormatErrorWithLog(message, ErrorLog.FilePath);
 
     /// <summary>
     /// Exportiert ab dem im Baum ausgewählten Ordner (ohne Auswahl: der ganze Scan), immer
@@ -228,20 +227,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         _isExporting = true;
         NotifyButtonStates();
-        StatusText = "Export läuft …";
+        StatusText = Strings.ExportRunning;
 
         try
         {
             var search = SearchText.Trim();
             var exportRoot = search.Length == 0 ? root : root.CreateFilteredCopy(search, int.MaxValue);
             var result = await CsvExporter.ExportAsync(exportRoot, destination, IncludeParentLevels);
-            var filterText = search.Length == 0 ? string.Empty : $" (Filter: \"{search}\")";
-            StatusText = $"Export ab {root.Name} gespeichert{filterText} · {result.Rows:N0} Zeilen · " +
-                         $"{result.LevelColumns} Ebenen · {displayPath}";
+            StatusText = Strings.FormatExportSaved(
+                root.Name, search.Length == 0 ? null : search, result.Rows, result.LevelColumns, displayPath);
         }
         catch (Exception ex)
         {
-            StatusText = $"Export fehlgeschlagen: {ex.Message}";
+            StatusText = Strings.FormatExportFailed(ex.Message);
         }
         finally
         {
@@ -332,7 +330,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var sortDirection = _sortDirection;
         SetRebuilding(true);
         if (sortRequested)
-            SetSortInfo($" · sortiere nach {ColumnName(sortColumn)} …");
+            SetSortInfo(Strings.FormatSorting(ColumnName(sortColumn)));
 
         try
         {
@@ -352,9 +350,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             AttachSelection(displayedRoot);
 
             if (sortRequested)
-                SetSortInfo($" · sortiert nach {ColumnName(sortColumn)} " +
-                            $"({(sortDirection == ListSortDirection.Ascending ? "aufsteigend" : "absteigend")}, " +
-                            $"{sw.Elapsed.TotalSeconds:N1} s)");
+                SetSortInfo(Strings.FormatSorted(
+                    ColumnName(sortColumn), sortDirection == ListSortDirection.Ascending, sw.Elapsed.TotalSeconds));
         }
         catch (Exception ex)
         {
@@ -412,13 +409,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private static string ColumnName(int? index) => index switch
     {
-        0 => "Name",
-        1 => "Typ",
-        2 => "Größe",
-        3 => "Dateien",
-        4 => "Ordner",
-        5 => "Anteil",
-        _ => "Standard"
+        0 => Strings.ColumnName,
+        1 => Strings.ColumnType,
+        2 => Strings.ColumnSize,
+        3 => Strings.ColumnFiles,
+        4 => Strings.ColumnFolders,
+        5 => Strings.ColumnShare,
+        _ => Strings.ColumnDefault
     };
 
     /// <summary>Läuft im Hintergrund: Kopie für die Anzeige erstellen, filtern, sortieren.</summary>
@@ -579,7 +576,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             {
                 new HierarchicalExpanderColumn<FolderNode>(
                     new TemplateColumn<FolderNode>(
-                        "Name",
+                        Strings.ColumnName,
                         CreateNameCellTemplate(),
                         null,
                         new GridLength(1, GridUnitType.Star),
@@ -592,7 +589,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                         }),
                     node => node.Children),
                 new TextColumn<FolderNode, string>(
-                    "Typ",
+                    Strings.ColumnType,
                     node => node.TypeText,
                     new GridLength(130),
                     new TextColumnOptions<FolderNode>
@@ -601,22 +598,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                         CompareDescending = (left, right) => string.Compare(right?.TypeText, left?.TypeText, StringComparison.CurrentCultureIgnoreCase)
                     }),
                 new TextColumn<FolderNode, string>(
-                    "Größe",
+                    Strings.ColumnSize,
                     node => node.SizeText,
                     new GridLength(145),
                     sizeOptions),
                 new TextColumn<FolderNode, string>(
-                    "Dateien",
+                    Strings.ColumnFiles,
                     node => node.FileCountText,
                     new GridLength(110),
                     fileOptions),
                 new TextColumn<FolderNode, string>(
-                    "Ordner",
+                    Strings.ColumnFolders,
                     node => node.FolderCountText,
                     new GridLength(100),
                     folderOptions),
                 new TextColumn<FolderNode, string>(
-                    "Anteil",
+                    Strings.ColumnShare,
                     node => node.PercentText,
                     new GridLength(90),
                     percentOptions)

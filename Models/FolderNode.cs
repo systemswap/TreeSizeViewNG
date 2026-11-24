@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Material.Icons;
+using TreeSizeViewNG.Localization;
 
 namespace TreeSizeViewNG.Models;
 
@@ -19,7 +20,7 @@ public sealed class FolderNode
     public string FolderCountText => IsFolder ? FolderCount.ToString("N0") : string.Empty;
     public string PercentText => $"{Percent:N1} %";
     public MaterialIconKind IconKind => FileTypeIconResolver.GetIconKind(this);
-    public string TypeText => IsFolder ? "Ordner" : FileTypeIconResolver.GetTypeText(FullPath);
+    public string TypeText => IsFolder ? Strings.TypeFolder : FileTypeIconResolver.GetTypeText(FullPath);
 
     public FolderNode CreateFilteredCopy(string searchText, int depthLimit)
     {
@@ -127,9 +128,9 @@ public static class FileTypeIconResolver
     {
         var extension = Path.GetExtension(path);
         if (string.IsNullOrWhiteSpace(extension))
-            return "Datei";
+            return Strings.TypeFile;
 
-        return extension.TrimStart('.').ToUpperInvariant() + "-Datei";
+        return Strings.FormatTypeFile(extension.TrimStart('.').ToUpperInvariant());
     }
 }
 

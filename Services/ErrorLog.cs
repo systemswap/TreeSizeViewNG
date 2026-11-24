@@ -1,12 +1,13 @@
 using System.Text;
+using TreeSizeViewNG.Localization;
 
 namespace TreeSizeViewNG.Services;
 
 /// <summary>
 /// Schreibt unerwartete Fehler in eine lokale Logdatei, damit ein Absturz auf einem
 /// anderen Rechner nachvollziehbar ist:
-///   Windows: %LOCALAPPDATA%\TreeSizeViewNG\fehler.log
-///   Linux:   ~/.local/share/TreeSizeViewNG/fehler.log
+///   Windows: %LOCALAPPDATA%\TreeSizeViewNG\fehler.log (englische Oberfläche: error.log)
+///   Linux:   ~/.local/share/TreeSizeViewNG/fehler.log bzw. error.log
 /// Die Datei bleibt auf dem Rechner, es wird nichts verschickt.
 /// </summary>
 public static class ErrorLog
@@ -17,7 +18,7 @@ public static class ErrorLog
     public static string FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "TreeSizeViewNG",
-        "fehler.log");
+        Strings.ErrorLogFileName);
 
     public static void Write(string context, Exception exception)
     {

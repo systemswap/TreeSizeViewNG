@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using TreeSizeViewNG.Localization;
 using TreeSizeViewNG.Models;
 
 namespace TreeSizeViewNG.Services;
@@ -55,11 +56,11 @@ public static class CsvExporter
         using var writer = new StreamWriter(destination, new UTF8Encoding(true), 1 << 16);
         var row = new List<string>(10 + levelColumns);
 
-        row.AddRange(["Typ", "Größe (Bytes)", "Größe (MB)", "Anteil (%)", "Dateien", "Unterordner",
-                      "Tiefe", "Erweiterung", "Name"]);
+        row.AddRange([Strings.CsvType, Strings.CsvSizeBytes, Strings.CsvSizeMb, Strings.CsvShare, Strings.CsvFiles,
+                      Strings.CsvSubfolders, Strings.CsvDepth, Strings.CsvExtension, Strings.CsvName]);
         for (var level = 1; level <= levelColumns; level++)
-            row.Add($"Ebene {level}");
-        row.Add("Vollständiger Pfad");
+            row.Add(Strings.FormatCsvLevel(level));
+        row.Add(Strings.CsvFullPath);
         WriteRow(writer, row, separator);
 
         long rows = 0;
@@ -82,7 +83,7 @@ public static class CsvExporter
                 folderChain.Add(node.Name);
 
             row.Clear();
-            row.Add(node.IsFolder ? "Ordner" : "Datei");
+            row.Add(node.IsFolder ? Strings.TypeFolder : Strings.TypeFile);
             row.Add(node.SizeBytes.ToString(CultureInfo.InvariantCulture));
             row.Add((node.SizeBytes / 1024d / 1024d).ToString("0.##", culture));
             row.Add((node.SizeBytes * 100d / rootSize).ToString("0.###", culture));

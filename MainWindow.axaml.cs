@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using TreeSizeViewNG.Localization;
 using TreeSizeViewNG.Services;
 using TreeSizeViewNG.ViewModels;
 
@@ -29,7 +30,7 @@ public partial class MainWindow : Window
         {
             var options = new FolderPickerOpenOptions
             {
-                Title = "Ordner zum Analysieren auswählen",
+                Title = Strings.ChooseFolderDialogTitle,
                 AllowMultiple = false
             };
 
@@ -46,7 +47,7 @@ public partial class MainWindow : Window
             var path = result[0].TryGetLocalPath();
             if (string.IsNullOrWhiteSpace(path))
             {
-                ViewModel.ReportError("Der gewählte Ort ist kein lokaler Ordner.");
+                ViewModel.ReportError(Strings.NotALocalFolder);
                 return;
             }
 
@@ -55,7 +56,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ErrorLog.Write("Ordner auswählen", ex);
-            ViewModel.ReportError($"Ordnerauswahl fehlgeschlagen: {ex.Message}");
+            ViewModel.ReportError(Strings.FormatFolderPickFailed(ex.Message));
         }
     }
 
@@ -68,7 +69,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ErrorLog.Write("Scan", ex);
-            ViewModel.ReportError($"Scan fehlgeschlagen: {ex.Message}");
+            ViewModel.ReportError(Strings.FormatScanFailed(ex.Message));
         }
     }
 
@@ -84,13 +85,13 @@ public partial class MainWindow : Window
 
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Export speichern",
+                Title = Strings.SaveExportDialogTitle,
                 SuggestedFileName = ViewModel.SuggestedExportFileName,
                 DefaultExtension = "csv",
                 ShowOverwritePrompt = true,
                 FileTypeChoices =
                 [
-                    new FilePickerFileType("CSV (Excel, Semikolon-getrennt)") { Patterns = ["*.csv"] }
+                    new FilePickerFileType(Strings.CsvFileType) { Patterns = ["*.csv"] }
                 ]
             });
 
@@ -105,7 +106,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ErrorLog.Write("CSV-Export", ex);
-            ViewModel.ReportError($"Export fehlgeschlagen: {ex.Message}");
+            ViewModel.ReportError(Strings.FormatExportFailed(ex.Message));
         }
     }
 

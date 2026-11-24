@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:TreeSizeViewNG.ViewModels"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:loc="using:TreeSizeViewNG.Localization"
         x:Class="TreeSizeViewNG.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="TreeSizeViewNG"
@@ -26,7 +27,7 @@
              RenderOptions.BitmapInterpolationMode="HighQuality" />
       <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" Spacing="1">
         <TextBlock Text="TreeSizeViewNG" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock Classes="hint" Text="Ordnergrößen schnell und übersichtlich analysieren" />
+        <TextBlock Classes="hint" Text="{x:Static loc:Strings.AppSubtitle}" />
       </StackPanel>
     </Grid>
 
@@ -35,9 +36,9 @@
       <Grid RowDefinitions="Auto,Auto">
         <Grid ColumnDefinitions="*,Auto,Auto,Auto">
           <StackPanel>
-            <TextBlock Classes="section" Text="ZU ANALYSIERENDER ORDNER" />
+            <TextBlock Classes="section" Text="{x:Static loc:Strings.FolderToAnalyse}" />
             <TextBox Text="{Binding FolderPath, UpdateSourceTrigger=PropertyChanged}"
-                     Watermark="Ordner auswählen" />
+                     Watermark="{x:Static loc:Strings.ChooseFolder}" />
           </StackPanel>
 
           <Button Grid.Column="1"
@@ -45,8 +46,8 @@
                   VerticalAlignment="Bottom"
                   Padding="8,5"
                   Click="ChooseFolder_OnClick"
-                  AutomationProperties.Name="Ordner auswählen"
-                  ToolTip.Tip="Ordner auswählen">
+                  AutomationProperties.Name="{x:Static loc:Strings.ChooseFolder}"
+                  ToolTip.Tip="{x:Static loc:Strings.ChooseFolder}">
             <mi:MaterialIcon Kind="FolderOpenOutline" Width="16" Height="16" />
           </Button>
 
@@ -56,11 +57,11 @@
                   Margin="8,0,0,0"
                   VerticalAlignment="Bottom"
                   IsEnabled="{Binding CanStart}"
-                  AutomationProperties.Name="Scannen"
+                  AutomationProperties.Name="{x:Static loc:Strings.Scan}"
                   Click="StartScan_OnClick">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <mi:MaterialIcon Kind="Magnify" Width="15" Height="15" />
-              <TextBlock Text="Scannen" />
+              <TextBlock Text="{x:Static loc:Strings.Scan}" />
             </StackPanel>
           </Button>
 
@@ -70,11 +71,11 @@
                   Margin="8,0,0,0"
                   VerticalAlignment="Bottom"
                   IsEnabled="{Binding CanStop}"
-                  AutomationProperties.Name="Stop"
+                  AutomationProperties.Name="{x:Static loc:Strings.Stop}"
                   Click="StopScan_OnClick">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <mi:MaterialIcon Kind="Stop" Width="15" Height="15" />
-              <TextBlock Text="Stop" />
+              <TextBlock Text="{x:Static loc:Strings.Stop}" />
             </StackPanel>
           </Button>
         </Grid>
@@ -83,13 +84,13 @@
               ColumnDefinitions="2*,Auto,Auto,Auto,Auto"
               Margin="0,12,0,0">
           <StackPanel>
-            <TextBlock Classes="section" Text="SUCHE" />
+            <TextBlock Classes="section" Text="{x:Static loc:Strings.Search}" />
             <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                     Watermark="Ordner- oder Dateiname filtern …" />
+                     Watermark="{x:Static loc:Strings.SearchWatermark}" />
           </StackPanel>
 
           <StackPanel Grid.Column="1" Margin="12,0,0,0">
-            <TextBlock Classes="section" Text="MINDESTGRÖSSE" />
+            <TextBlock Classes="section" Text="{x:Static loc:Strings.MinimumSize}" />
             <NumericUpDown Width="130"
                            Minimum="0"
                            Maximum="1000000"
@@ -109,11 +110,11 @@
                   Margin="12,0,0,0"
                   VerticalAlignment="Bottom"
                   Click="ExpandAll_OnClick"
-                  AutomationProperties.Name="Alles ausklappen"
-                  ToolTip.Tip="Alle Ordner im Baum öffnen">
+                  AutomationProperties.Name="{x:Static loc:Strings.ExpandAll}"
+                  ToolTip.Tip="{x:Static loc:Strings.ExpandAllTip}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <mi:MaterialIcon Kind="UnfoldMoreHorizontal" Width="15" Height="15" />
-              <TextBlock Text="Alles ausklappen" />
+              <TextBlock Text="{x:Static loc:Strings.ExpandAll}" />
             </StackPanel>
           </Button>
 
@@ -121,11 +122,11 @@
                   Margin="8,0,0,0"
                   VerticalAlignment="Bottom"
                   Click="CollapseAll_OnClick"
-                  AutomationProperties.Name="Alles einklappen"
-                  ToolTip.Tip="Alle Ordner im Baum schließen">
+                  AutomationProperties.Name="{x:Static loc:Strings.CollapseAll}"
+                  ToolTip.Tip="{x:Static loc:Strings.CollapseAllTip}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <mi:MaterialIcon Kind="UnfoldLessHorizontal" Width="15" Height="15" />
-              <TextBlock Text="Alles einklappen" />
+              <TextBlock Text="{x:Static loc:Strings.CollapseAll}" />
             </StackPanel>
           </Button>
 
@@ -133,7 +134,7 @@
                      Classes="hint"
                      Margin="12,0,0,6"
                      VerticalAlignment="Bottom"
-                     Text="Passende Dateien werden im Baum angezeigt" />
+                     Text="{x:Static loc:Strings.MatchingFilesHint}" />
         </Grid>
       </Grid>
     </Border>
@@ -150,19 +151,19 @@
                     Content="−"
                     Click="CollapseOneLevel_OnClick"
                     IsEnabled="{Binding CanCollapseOneLevel}"
-                    ToolTip.Tip="Eine Ebene global einklappen" />
+                    ToolTip.Tip="{x:Static loc:Strings.CollapseLevelTip}" />
             <Button Grid.Column="1"
                     Classes="levelButton"
                     Content="+"
                     Margin="6,0,0,0"
                     Click="ExpandOneLevel_OnClick"
                     IsEnabled="{Binding CanExpandOneLevel}"
-                    ToolTip.Tip="Eine Ebene global ausklappen" />
+                    ToolTip.Tip="{x:Static loc:Strings.ExpandLevelTip}" />
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" Margin="12,0,0,0">
               <Border Width="7" Height="7" CornerRadius="3.5"
                       Background="{DynamicResource Fine.Ok}"
                       VerticalAlignment="Center" />
-              <TextBlock Text="Ordner- und Dateistruktur"
+              <TextBlock Text="{x:Static loc:Strings.TreeTitle}"
                          FontWeight="SemiBold"
                          VerticalAlignment="Center" />
             </StackPanel>
@@ -180,7 +181,7 @@
             <TextBlock Grid.Column="5"
                        Classes="hint"
                        Foreground="{DynamicResource Fine.TextMuted}"
-                       Text="Klick auf eine Spaltenüberschrift zum Sortieren"
+                       Text="{x:Static loc:Strings.SortHint}"
                        VerticalAlignment="Center" />
           </Grid>
         </Border>
@@ -209,9 +210,9 @@
                    TextTrimming="CharacterEllipsis"
                    Text="{Binding ExportScopeText}"
                    ToolTip.Tip="{Binding ExportScopePath}" />
-        <CheckBox Content="Übergeordnete Ebenen mitexportieren"
+        <CheckBox Content="{x:Static loc:Strings.IncludeParentLevels}"
                   IsChecked="{Binding IncludeParentLevels}"
-                  ToolTip.Tip="Aus: Ebene 1 ist der im Baum ausgewählte Ordner (ohne Auswahl der gescannte Ordner).&#x0a;An: Ebene 1 ist das Laufwerk (z. B. C:), danach alle Ordner, in denen er liegt." />
+                  ToolTip.Tip="{x:Static loc:Strings.IncludeParentLevelsTip}" />
       </StackPanel>
 
       <Border Grid.Row="1"
@@ -244,11 +245,11 @@
               VerticalAlignment="Stretch"
               IsEnabled="{Binding CanExport}"
               Click="ExportCsv_OnClick"
-              AutomationProperties.Name="CSV exportieren"
-              ToolTip.Tip="Als CSV für Excel exportieren: ab dem im Baum ausgewählten Ordner (ohne Auswahl der ganze Scan), immer mit allen Unterebenen. Eine Zeile pro Ordner/Datei, Größe in Bytes, jede Ebene als eigene Spalte. Ein aktiver Suchfilter wird berücksichtigt.">
+              AutomationProperties.Name="{x:Static loc:Strings.ExportCsv}"
+              ToolTip.Tip="{x:Static loc:Strings.ExportCsvTip}">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <mi:MaterialIcon Kind="Download" Width="15" Height="15" />
-          <TextBlock Text="CSV exportieren" />
+          <TextBlock Text="{x:Static loc:Strings.ExportCsv}" />
         </StackPanel>
       </Button>
     </Grid>
