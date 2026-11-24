@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/badge/Windows%20%7C%20Linux-1f232b?style=flat-square" alt="Windows und Linux">
   <img src="https://img.shields.io/badge/UI-Avalonia-1f232b?style=flat-square" alt="Oberfläche: Avalonia">
   <img src="https://img.shields.io/badge/.NET-10-1f232b?style=flat-square" alt=".NET 10">
+  <img src="https://img.shields.io/badge/Sprache-Deutsch%20%7C%20English-1f232b?style=flat-square" alt="Sprache: Deutsch und Englisch">
   <img src="https://img.shields.io/badge/Installation-keine-1f232b?style=flat-square" alt="Keine Installation">
   <img src="https://img.shields.io/badge/Telemetrie-keine-1f232b?style=flat-square" alt="Keine Telemetrie">
   <img src="https://img.shields.io/badge/Export-CSV%20f%C3%BCr%20Excel-1f232b?style=flat-square" alt="Export: CSV für Excel">
@@ -54,13 +55,18 @@
 - Suche nach Ordner- und Dateinamen
 - Mindestgröße für berücksichtigte Dateien
 - **CSV-Export für Excel** (unten rechts), siehe unten
+- **Deutsch und Englisch:** Ist das Betriebssystem auf Deutsch eingestellt, ist die Oberfläche deutsch, sonst englisch.
+  Erzwingen lässt sich die Sprache mit der Umgebungsvariablen `TREESIZEVIEWNG_LANG=de` bzw. `=en`. Zahlen und Datum folgen
+  weiterhin der Regionaleinstellung.
 - Symbolische Links und Junctions werden ignoriert, nicht zugängliche Einträge übersprungen
 - Unerwartete Fehler beenden das Programm nicht, sondern erscheinen in der Statusleiste und werden in
-  `%LOCALAPPDATA%\TreeSizeViewNG\fehler.log` (Linux: `~/.local/share/TreeSizeViewNG/fehler.log`) protokolliert
+  `%LOCALAPPDATA%\TreeSizeViewNG\fehler.log` (englische Oberfläche: `error.log`; Linux: `~/.local/share/TreeSizeViewNG/`)
+  protokolliert
 
 ## CSV-Export
 
 Eine Zeile pro Ordner bzw. Datei, Trennzeichen und Dezimalzeichen passend zum System (deutsches Excel: `;` und `,`), UTF-8 mit BOM.
+Die Spaltenüberschriften sind in der Sprache der Oberfläche (englisch z. B. `Type`, `Size (bytes)`, `Level 1`).
 
 | Spalte | Inhalt |
 |---|---|
