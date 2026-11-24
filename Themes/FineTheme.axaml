@@ -1,0 +1,325 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Ruhiges, feines Design nach dem Vorbild von MyLittleSlideShow (FineTheme):
+       eigene Farben fuer Hell und Dunkel, kompakte Fluent-Masse und farbige
+       Schaltflaechen, damit sie in beiden Modi als solche erkennbar sind.
+       Alle Farben werden per DynamicResource genutzt, damit der Wechsel
+       zwischen hellem und dunklem Windows-Modus automatisch greift. -->
+
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="Fine.WindowBackground" Color="#F4F5F7" />
+          <SolidColorBrush x:Key="Fine.CardBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Fine.CardBorder" Color="#E2E4E8" />
+          <SolidColorBrush x:Key="Fine.Divider" Color="#EDEFF2" />
+          <SolidColorBrush x:Key="Fine.Inset" Color="#F6F7F9" />
+          <SolidColorBrush x:Key="Fine.TextPrimary" Color="#1F2328" />
+          <SolidColorBrush x:Key="Fine.TextSecondary" Color="#6E7681" />
+          <SolidColorBrush x:Key="Fine.TextMuted" Color="#959CA6" />
+          <SolidColorBrush x:Key="Fine.Accent" Color="#33557F" />
+          <SolidColorBrush x:Key="Fine.AccentHover" Color="#28466B" />
+          <SolidColorBrush x:Key="Fine.AccentPressed" Color="#1F3854" />
+          <SolidColorBrush x:Key="Fine.OnAccent" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Fine.AccentTint" Color="#E8EEF6" />
+          <SolidColorBrush x:Key="Fine.Ok" Color="#2E9E5B" />
+          <SolidColorBrush x:Key="Fine.BoxBorder" Color="#B3B9C2" />
+          <SolidColorBrush x:Key="Fine.BoxBackground" Color="#FFFFFF" />
+
+          <!-- Normale Schaltflaeche: zart blau getoent mit Rahmen -->
+          <SolidColorBrush x:Key="Fine.Secondary" Color="#E6EDF6" />
+          <SolidColorBrush x:Key="Fine.SecondaryHover" Color="#D8E3F0" />
+          <SolidColorBrush x:Key="Fine.SecondaryPressed" Color="#CBD8E8" />
+          <SolidColorBrush x:Key="Fine.SecondaryBorder" Color="#BFCDE0" />
+          <SolidColorBrush x:Key="Fine.OnSecondary" Color="#28466B" />
+
+          <!-- Stop: zart rot getoent -->
+          <SolidColorBrush x:Key="Fine.Danger" Color="#FBEBEB" />
+          <SolidColorBrush x:Key="Fine.DangerHover" Color="#F6DCDC" />
+          <SolidColorBrush x:Key="Fine.DangerPressed" Color="#F0CDCD" />
+          <SolidColorBrush x:Key="Fine.DangerBorder" Color="#E6BDBD" />
+          <SolidColorBrush x:Key="Fine.OnDanger" Color="#9B2C2C" />
+
+          <SolidColorBrush x:Key="Fine.StatusBackground" Color="#EEF2F8" />
+          <SolidColorBrush x:Key="Fine.StatusBorder" Color="#DCE3EE" />
+
+          <!-- Fluent-Eingabefelder passend einfaerben -->
+          <SolidColorBrush x:Key="TextControlBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#C4CAD3" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#33557F" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#33557F" />
+
+          <!-- Pfeile im Zahlenfeld -->
+          <SolidColorBrush x:Key="RepeatButtonBackgroundPointerOver" Color="#E6EDF6" />
+          <SolidColorBrush x:Key="RepeatButtonBackgroundPressed" Color="#D8E3F0" />
+          <SolidColorBrush x:Key="RepeatButtonBackgroundDisabled" Color="#FFFFFF" />
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Fine.WindowBackground" Color="#1B1C1F" />
+          <SolidColorBrush x:Key="Fine.CardBackground" Color="#24262A" />
+          <SolidColorBrush x:Key="Fine.CardBorder" Color="#33363C" />
+          <SolidColorBrush x:Key="Fine.Divider" Color="#2E3035" />
+          <SolidColorBrush x:Key="Fine.Inset" Color="#202125" />
+          <SolidColorBrush x:Key="Fine.TextPrimary" Color="#E6E8EB" />
+          <SolidColorBrush x:Key="Fine.TextSecondary" Color="#9097A0" />
+          <SolidColorBrush x:Key="Fine.TextMuted" Color="#6F7680" />
+          <SolidColorBrush x:Key="Fine.Accent" Color="#7FA3D1" />
+          <SolidColorBrush x:Key="Fine.AccentHover" Color="#93B3DB" />
+          <SolidColorBrush x:Key="Fine.AccentPressed" Color="#6B8FBD" />
+          <SolidColorBrush x:Key="Fine.OnAccent" Color="#14161A" />
+          <SolidColorBrush x:Key="Fine.AccentTint" Color="#2A3442" />
+          <SolidColorBrush x:Key="Fine.Ok" Color="#4CC27F" />
+          <SolidColorBrush x:Key="Fine.BoxBorder" Color="#5C626B" />
+          <SolidColorBrush x:Key="Fine.BoxBackground" Color="#1F2023" />
+
+          <SolidColorBrush x:Key="Fine.Secondary" Color="#283241" />
+          <SolidColorBrush x:Key="Fine.SecondaryHover" Color="#313D4F" />
+          <SolidColorBrush x:Key="Fine.SecondaryPressed" Color="#3A485C" />
+          <SolidColorBrush x:Key="Fine.SecondaryBorder" Color="#3D4D63" />
+          <SolidColorBrush x:Key="Fine.OnSecondary" Color="#B4CBE8" />
+
+          <SolidColorBrush x:Key="Fine.Danger" Color="#3A2527" />
+          <SolidColorBrush x:Key="Fine.DangerHover" Color="#472D30" />
+          <SolidColorBrush x:Key="Fine.DangerPressed" Color="#543438" />
+          <SolidColorBrush x:Key="Fine.DangerBorder" Color="#5C383C" />
+          <SolidColorBrush x:Key="Fine.OnDanger" Color="#F2A7A7" />
+
+          <SolidColorBrush x:Key="Fine.StatusBackground" Color="#22262D" />
+          <SolidColorBrush x:Key="Fine.StatusBorder" Color="#323843" />
+
+          <SolidColorBrush x:Key="TextControlBackground" Color="#1F2023" />
+          <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#1F2023" />
+          <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#1F2023" />
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#4A4F57" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#7FA3D1" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#7FA3D1" />
+
+          <!-- Pfeile im Zahlenfeld -->
+          <SolidColorBrush x:Key="RepeatButtonBackgroundPointerOver" Color="#283241" />
+          <SolidColorBrush x:Key="RepeatButtonBackgroundPressed" Color="#313D4F" />
+          <SolidColorBrush x:Key="RepeatButtonBackgroundDisabled" Color="#1F2023" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Akzentfarbe statt Systemblau (Auswahl im Baum, Fortschrittsbalken, Fokus) -->
+      <Color x:Key="SystemAccentColor">#33557F</Color>
+      <Color x:Key="SystemAccentColorDark1">#28466B</Color>
+      <Color x:Key="SystemAccentColorDark2">#1F3854</Color>
+      <Color x:Key="SystemAccentColorDark3">#172A40</Color>
+      <Color x:Key="SystemAccentColorLight1">#4A6C97</Color>
+      <Color x:Key="SystemAccentColorLight2">#6587B0</Color>
+      <Color x:Key="SystemAccentColorLight3">#7FA3D1</Color>
+
+      <!-- Kompakte Masse fuer die Fluent-Controls (entspricht im Kern DensityStyle="Compact") -->
+      <x:Double x:Key="ControlContentThemeFontSize">12</x:Double>
+      <x:Double x:Key="ContentControlFontSize">12</x:Double>
+      <x:Double x:Key="TextControlThemeMinHeight">28</x:Double>
+      <Thickness x:Key="TextControlThemePadding">8,5,8,4</Thickness>
+      <Thickness x:Key="ButtonPadding">12,5,12,6</Thickness>
+
+      <!-- Feine Checkbox: 15 px Kaestchen, Akzentfarbe statt Systemblau (wie MyLittleSlideShow) -->
+      <ControlTheme x:Key="FineCheckBox" TargetType="CheckBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Fine.TextPrimary}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Grid ColumnDefinitions="Auto,*" Background="{TemplateBinding Background}">
+              <Border x:Name="Box"
+                      Width="15" Height="15"
+                      CornerRadius="3.5"
+                      BorderThickness="1"
+                      BorderBrush="{DynamicResource Fine.BoxBorder}"
+                      Background="{DynamicResource Fine.BoxBackground}"
+                      VerticalAlignment="Center">
+                <Path x:Name="Glyph"
+                      Data="M 2.8,6.6 L 5.4,9.1 L 10.2,3.9"
+                      Stroke="{DynamicResource Fine.OnAccent}"
+                      StrokeThickness="1.6"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      IsVisible="False" />
+              </Border>
+              <ContentPresenter x:Name="PART_ContentPresenter"
+                                Grid.Column="1"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                Foreground="{TemplateBinding Foreground}" />
+            </Grid>
+          </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^:pointerover /template/ Border#Box">
+          <Setter Property="BorderBrush" Value="{DynamicResource Fine.Accent}" />
+        </Style>
+        <Style Selector="^:checked /template/ Border#Box">
+          <Setter Property="Background" Value="{DynamicResource Fine.Accent}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource Fine.Accent}" />
+        </Style>
+        <Style Selector="^:checked:pointerover /template/ Border#Box">
+          <Setter Property="Background" Value="{DynamicResource Fine.AccentHover}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource Fine.AccentHover}" />
+        </Style>
+        <Style Selector="^:checked /template/ Path#Glyph">
+          <Setter Property="IsVisible" Value="True" />
+        </Style>
+        <Style Selector="^:disabled">
+          <Setter Property="Opacity" Value="0.45" />
+        </Style>
+      </ControlTheme>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <Style Selector="CheckBox">
+    <Setter Property="Theme" Value="{StaticResource FineCheckBox}" />
+  </Style>
+
+  <!-- Karten -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource Fine.CardBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+
+  <!-- Typografie -->
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.TextSecondary}" />
+    <Setter Property="Margin" Value="2,0,0,5" />
+  </Style>
+  <Style Selector="TextBlock.hint">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.TextSecondary}" />
+  </Style>
+
+  <!-- Eingabefelder -->
+  <Style Selector="TextBox">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="CornerRadius" Value="5" />
+  </Style>
+  <Style Selector="NumericUpDown">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+
+  <!-- Feine Pfeile im Zahlenfeld. Breite und Symbolgroesse setzt Fluent fest im
+       Template (hat Vorrang vor Styles), daher wird das Symbol nur skaliert;
+       Hover/Gedrueckt/Deaktiviert kommen ueber die RepeatButton*-Ressourcen oben. -->
+  <Style Selector="ButtonSpinner /template/ RepeatButton PathIcon">
+    <Setter Property="Foreground" Value="{DynamicResource Fine.TextSecondary}" />
+    <Setter Property="RenderTransform" Value="scale(0.6)" />
+  </Style>
+  <Style Selector="ButtonSpinner /template/ RepeatButton:pointerover PathIcon">
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnSecondary}" />
+  </Style>
+  <Style Selector="ButtonSpinner /template/ RepeatButton:disabled PathIcon">
+    <Setter Property="Foreground" Value="{DynamicResource Fine.TextMuted}" />
+    <Setter Property="Opacity" Value="0.5" />
+  </Style>
+
+  <!-- Schaltflaechen: alle farbig, damit sie auch im Dunkelmodus erkennbar sind.
+       Standard = zart blau getoent, .primary = volle Akzentfarbe, .danger = zart rot. -->
+  <Style Selector="Button">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Background" Value="{DynamicResource Fine.Secondary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.SecondaryBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnSecondary}" />
+  </Style>
+  <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.SecondaryHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.SecondaryBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnSecondary}" />
+  </Style>
+  <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.SecondaryPressed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.SecondaryBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnSecondary}" />
+  </Style>
+  <!-- Deaktiviert: gleiche Farben, nur blasser (statt Fluent-Grau) -->
+  <Style Selector="Button:disabled">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+  <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.Secondary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.SecondaryBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnSecondary}" />
+  </Style>
+
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{DynamicResource Fine.Accent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnAccent}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.AccentHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.AccentHover}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnAccent}" />
+  </Style>
+  <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.AccentPressed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.AccentPressed}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnAccent}" />
+  </Style>
+  <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.Accent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnAccent}" />
+  </Style>
+
+  <Style Selector="Button.danger">
+    <Setter Property="Background" Value="{DynamicResource Fine.Danger}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.DangerBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnDanger}" />
+  </Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.DangerHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.DangerBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnDanger}" />
+  </Style>
+  <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.DangerPressed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.DangerBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnDanger}" />
+  </Style>
+  <Style Selector="Button.danger:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Fine.Danger}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Fine.DangerBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource Fine.OnDanger}" />
+  </Style>
+
+  <!-- Kleine runde Ebenen-Knoepfe (+ / −) -->
+  <Style Selector="Button.levelButton">
+    <Setter Property="Width" Value="24" />
+    <Setter Property="Height" Value="24" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <!-- Baum etwas feiner -->
+  <Style Selector="TreeDataGrid">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+</Styles>

@@ -1,0 +1,256 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TreeSizeViewNG.ViewModels"
+        xmlns:mi="using:Material.Icons.Avalonia"
+        x:Class="TreeSizeViewNG.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="TreeSizeViewNG"
+        Icon="/Assets/app.ico"
+        Width="1180"
+        Height="760"
+        MinWidth="900"
+        MinHeight="560"
+        FontSize="12"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Fine.WindowBackground}"
+        Foreground="{DynamicResource Fine.TextPrimary}">
+
+  <!-- Farben und Control-Stile: Themes/FineTheme.axaml (hell und dunkel) -->
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20,14,20,16">
+
+    <!-- Kopfzeile -->
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="2,0,2,12">
+      <Image Source="/Assets/Icon.png"
+             Width="30" Height="30"
+             VerticalAlignment="Center"
+             RenderOptions.BitmapInterpolationMode="HighQuality" />
+      <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" Spacing="1">
+        <TextBlock Text="TreeSizeViewNG" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Classes="hint" Text="Ordnergrößen schnell und übersichtlich analysieren" />
+      </StackPanel>
+    </Grid>
+
+    <!-- Eingaben -->
+    <Border Grid.Row="1" Classes="card" Padding="14,12" Margin="0,0,0,12">
+      <Grid RowDefinitions="Auto,Auto">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+          <StackPanel>
+            <TextBlock Classes="section" Text="ZU ANALYSIERENDER ORDNER" />
+            <TextBox Text="{Binding FolderPath, UpdateSourceTrigger=PropertyChanged}"
+                     Watermark="Ordner auswählen" />
+          </StackPanel>
+
+          <Button Grid.Column="1"
+                  Margin="8,0,0,0"
+                  VerticalAlignment="Bottom"
+                  Padding="8,5"
+                  Click="ChooseFolder_OnClick"
+                  AutomationProperties.Name="Ordner auswählen"
+                  ToolTip.Tip="Ordner auswählen">
+            <mi:MaterialIcon Kind="FolderOpenOutline" Width="16" Height="16" />
+          </Button>
+
+          <Button Grid.Column="2"
+                  Classes="primary"
+                  MinWidth="96"
+                  Margin="8,0,0,0"
+                  VerticalAlignment="Bottom"
+                  IsEnabled="{Binding CanStart}"
+                  AutomationProperties.Name="Scannen"
+                  Click="StartScan_OnClick">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <mi:MaterialIcon Kind="Magnify" Width="15" Height="15" />
+              <TextBlock Text="Scannen" />
+            </StackPanel>
+          </Button>
+
+          <Button Grid.Column="3"
+                  Classes="danger"
+                  MinWidth="80"
+                  Margin="8,0,0,0"
+                  VerticalAlignment="Bottom"
+                  IsEnabled="{Binding CanStop}"
+                  AutomationProperties.Name="Stop"
+                  Click="StopScan_OnClick">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <mi:MaterialIcon Kind="Stop" Width="15" Height="15" />
+              <TextBlock Text="Stop" />
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <Grid Grid.Row="1"
+              ColumnDefinitions="2*,Auto,Auto,Auto,Auto"
+              Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Classes="section" Text="SUCHE" />
+            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     Watermark="Ordner- oder Dateiname filtern …" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Margin="12,0,0,0">
+            <TextBlock Classes="section" Text="MINDESTGRÖSSE" />
+            <NumericUpDown Width="130"
+                           Minimum="0"
+                           Maximum="1000000"
+                           Increment="10"
+                           Value="{Binding MinimumSizeMb, Mode=TwoWay}"
+                           FormatString="0.##">
+              <NumericUpDown.InnerRightContent>
+                <TextBlock Text="MB"
+                           Margin="0,0,6,0"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Fine.TextSecondary}" />
+              </NumericUpDown.InnerRightContent>
+            </NumericUpDown>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Margin="12,0,0,0"
+                  VerticalAlignment="Bottom"
+                  Click="ExpandAll_OnClick"
+                  AutomationProperties.Name="Alles ausklappen"
+                  ToolTip.Tip="Alle Ordner im Baum öffnen">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <mi:MaterialIcon Kind="UnfoldMoreHorizontal" Width="15" Height="15" />
+              <TextBlock Text="Alles ausklappen" />
+            </StackPanel>
+          </Button>
+
+          <Button Grid.Column="3"
+                  Margin="8,0,0,0"
+                  VerticalAlignment="Bottom"
+                  Click="CollapseAll_OnClick"
+                  AutomationProperties.Name="Alles einklappen"
+                  ToolTip.Tip="Alle Ordner im Baum schließen">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <mi:MaterialIcon Kind="UnfoldLessHorizontal" Width="15" Height="15" />
+              <TextBlock Text="Alles einklappen" />
+            </StackPanel>
+          </Button>
+
+          <TextBlock Grid.Column="4"
+                     Classes="hint"
+                     Margin="12,0,0,6"
+                     VerticalAlignment="Bottom"
+                     Text="Passende Dateien werden im Baum angezeigt" />
+        </Grid>
+      </Grid>
+    </Border>
+
+    <!-- Baum -->
+    <Border Grid.Row="2" Classes="card" ClipToBounds="True">
+      <Grid RowDefinitions="Auto,*">
+        <Border Background="{DynamicResource Fine.Inset}"
+                BorderBrush="{DynamicResource Fine.Divider}"
+                BorderThickness="0,0,0,1"
+                Padding="12,8">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+            <Button Classes="levelButton"
+                    Content="−"
+                    Click="CollapseOneLevel_OnClick"
+                    IsEnabled="{Binding CanCollapseOneLevel}"
+                    ToolTip.Tip="Eine Ebene global einklappen" />
+            <Button Grid.Column="1"
+                    Classes="levelButton"
+                    Content="+"
+                    Margin="6,0,0,0"
+                    Click="ExpandOneLevel_OnClick"
+                    IsEnabled="{Binding CanExpandOneLevel}"
+                    ToolTip.Tip="Eine Ebene global ausklappen" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" Margin="12,0,0,0">
+              <Border Width="7" Height="7" CornerRadius="3.5"
+                      Background="{DynamicResource Fine.Ok}"
+                      VerticalAlignment="Center" />
+              <TextBlock Text="Ordner- und Dateistruktur"
+                         FontWeight="SemiBold"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+            <Border Grid.Column="3"
+                    Margin="10,0,0,0"
+                    Padding="8,2"
+                    CornerRadius="999"
+                    Background="{DynamicResource Fine.AccentTint}"
+                    VerticalAlignment="Center">
+              <TextBlock Text="{Binding ExpansionDepthText}"
+                         FontSize="11"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource Fine.OnSecondary}" />
+            </Border>
+            <TextBlock Grid.Column="5"
+                       Classes="hint"
+                       Foreground="{DynamicResource Fine.TextMuted}"
+                       Text="Klick auf eine Spaltenüberschrift zum Sortieren"
+                       VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+        <TreeDataGrid Grid.Row="1"
+                      Source="{Binding Source}"
+                      BorderThickness="0"
+                      Background="{DynamicResource Fine.CardBackground}"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True" />
+      </Grid>
+    </Border>
+
+    <!-- Statusleiste und Export unten rechts -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
+      <!-- Export-Optionen über dem Export-Button -->
+      <StackPanel Grid.Row="0"
+                  Grid.ColumnSpan="2"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Spacing="14"
+                  Margin="0,0,0,8">
+        <TextBlock Classes="hint"
+                   VerticalAlignment="Center"
+                   MaxWidth="420"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding ExportScopeText}"
+                   ToolTip.Tip="{Binding ExportScopePath}" />
+        <CheckBox Content="Übergeordnete Ebenen mitexportieren"
+                  IsChecked="{Binding IncludeParentLevels}"
+                  ToolTip.Tip="Aus: Ebene 1 ist der im Baum ausgewählte Ordner (ohne Auswahl der gescannte Ordner).&#x0a;An: Ebene 1 ist das Laufwerk (z. B. C:), danach alle Ordner, in denen er liegt." />
+      </StackPanel>
+
+      <Border Grid.Row="1"
+              Background="{DynamicResource Fine.StatusBackground}"
+              BorderBrush="{DynamicResource Fine.StatusBorder}"
+              BorderThickness="1"
+              CornerRadius="6"
+              Padding="12,0"
+              MinHeight="30">
+        <Grid ColumnDefinitions="Auto,*">
+          <ProgressBar Width="120"
+                       Height="4"
+                       MinHeight="4"
+                       Margin="0,0,10,0"
+                       IsIndeterminate="{Binding IsBusy}"
+                       IsVisible="{Binding IsBusy}"
+                       VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1"
+                     VerticalAlignment="Center"
+                     Foreground="{DynamicResource Fine.TextSecondary}"
+                     Text="{Binding StatusDisplay}"
+                     TextTrimming="CharacterEllipsis" />
+        </Grid>
+      </Border>
+
+      <Button Grid.Row="1"
+              Grid.Column="1"
+              Classes="primary"
+              Margin="10,0,0,0"
+              VerticalAlignment="Stretch"
+              IsEnabled="{Binding CanExport}"
+              Click="ExportCsv_OnClick"
+              AutomationProperties.Name="CSV exportieren"
+              ToolTip.Tip="Als CSV für Excel exportieren: ab dem im Baum ausgewählten Ordner (ohne Auswahl der ganze Scan), immer mit allen Unterebenen. Eine Zeile pro Ordner/Datei, Größe in Bytes, jede Ebene als eigene Spalte. Ein aktiver Suchfilter wird berücksichtigt.">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <mi:MaterialIcon Kind="Download" Width="15" Height="15" />
+          <TextBlock Text="CSV exportieren" />
+        </StackPanel>
+      </Button>
+    </Grid>
+  </Grid>
+</Window>

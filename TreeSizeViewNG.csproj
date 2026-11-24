@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>TreeSizeViewNG</RootNamespace>
+    <AssemblyName>TreeSizeViewNG</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <Deterministic>true</Deterministic>
+    <Version>1.0.0</Version>
+    <Product>TreeSizeViewNG</Product>
+    <!-- Programmsymbol der exe (Explorer, Taskleiste); erzeugt von tools/make-icon.cs -->
+    <ApplicationIcon>Assets/app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Fenster-Symbol (Titelleiste) -->
+    <AvaloniaResource Include="Assets/**" />
+    <!-- Hilfsskripte (eigene dateibasierte Programme) nicht mitkompilieren -->
+    <Compile Remove="tools/**" />
+  </ItemGroup>
+
+  <!--
+    Avalonia bleibt bewusst auf der neuesten 11er-Version (11.3.x):
+    TreeDataGrid ab 11.2 und alle 12.x-Versionen benoetigen eine kostenpflichtige
+    "Avalonia Accelerate"-Lizenz (mit Lizenzpruefung zur Laufzeit). TreeDataGrid 11.1.0
+    ist die letzte MIT-Version und laeuft mit jeder Avalonia-11-Version.
+    Avalonia 12 wuerde TreeDataGrid 12 voraussetzen.
+    Material.Icons.Avalonia 2.3.1 ist die letzte Version fuer Avalonia 11 (ab 2.4 nur Avalonia 12).
+  -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.1.0" />
+    <PackageReference Include="Material.Icons.Avalonia" Version="2.3.1" />
+  </ItemGroup>
+</Project>

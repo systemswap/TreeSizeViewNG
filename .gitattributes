@@ -1,0 +1,9 @@
+* text=auto
+
+# Shell-Skripte brauchen LF, sonst laufen sie unter Linux nicht
+*.sh text eol=lf
+# Windows-Skripte mit CRLF
+*.cmd text eol=crlf
+
+*.png binary
+*.ico binary

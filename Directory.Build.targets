@@ -1,0 +1,9 @@
+<Project>
+    <!-- Keine Nutzungsdaten an Avalonia: Das Paket Avalonia.BuildServices (kommt mit Avalonia)
+         meldet sonst bei jedem Build Projekt, Version, IDE, System und eine Geräte-Kennung an
+         seinen Server. Die Umgebungsvariable AVALONIA_TELEMETRY_OPTOUT=1 hilft nur, wo sie
+         gesetzt ist; dieses leere Target ersetzt das gleichnamige aus dem Paket auf jedem Rechner
+         und in jeder IDE. Directory.Build.targets wird nach den Paket-Targets geladen, die letzte
+         Definition gilt. Nicht löschen. -->
+    <Target Name="AvaloniaStats" />
+</Project>
