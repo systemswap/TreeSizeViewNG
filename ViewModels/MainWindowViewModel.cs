@@ -279,7 +279,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 ConvertMegabytesToBytes(MinimumSizeMb),
                 progress,
                 scanCts.Token,
-                liveRoot => Volatile.Write(ref _liveRoot, liveRoot));
+                liveRoot =>
+                {
+                    liveRoot.IsExpanded = true; // oberste Ebene von Anfang an sichtbar
+                    Volatile.Write(ref _liveRoot, liveRoot);
+                });
 
             _liveTimer?.Stop();
             if (_disposed)
@@ -409,6 +413,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>Einen einzelnen Ordner auf- oder zuklappen (Pfeil vor dem Namen, Doppelklick).</summary>
     public void Toggle(FolderNode node)
     {
+        if (IsScanning && !_disposed)
+        {
+            // Während des Scans: nur den Zustand merken, die Live-Liste wird gleich neu aufgebaut
+            if (node.HasChildren)
+            {
+                node.IsExpanded = !node.IsExpanded;
+                ShowLiveRows();
+            }
+            return;
+        }
+
         if (!CanInteract || !node.HasChildren)
             return;
 
@@ -486,7 +501,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         SetRows(rows);
     }
 
-    private void SetRows(List<FolderNode> rows)
+    private void SetRows(List<FolderNode> rows, bool scrollToSelection = true)
     {
         _suppressSelection = true;
         try
@@ -501,7 +516,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             {
                 _selectedNode = target;
                 selection.SelectedIndex = index;
-                ScrollToRowRequested?.Invoke(index);
+                if (scrollToSelection)
+                    ScrollToRowRequested?.Invoke(index);
             }
             else
             {
@@ -550,24 +566,34 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         NotifyExportScope();
     }
 
-    /// <summary>Während des Scans: Stammordner und oberste Ebene mit den bisher gezählten Größen.</summary>
+    /// <summary>
+    /// Während des Scans: zeigt den bisher gescannten Baum mit den bisher gezählten Größen – zunächst
+    /// Stammordner und oberste Ebene; aufgeklappte Ordner zeigen ihren Inhalt, sobald er gescannt ist.
+    /// Kinder werden für die Anzeige nach Größe sortiert (Kopie; die Daten gehören noch dem Scanner).
+    /// </summary>
     private void ShowLiveRows()
     {
         var root = Volatile.Read(ref _liveRoot);
         if (!IsScanning || root is null)
             return;
 
-        var children = root.Children.ToArray();
-        Array.Sort(children, static (a, b) => b.SizeBytes.CompareTo(a.SizeBytes));
         var rootSize = Math.Max(1d, root.SizeBytes);
-        root.Percent = 100;
-        root.IsExpanded = true;
-        foreach (var child in children)
-            child.Percent = child.IsOnlineOnly ? 0 : child.SizeBytes * 100d / rootSize;
+        var rows = new List<FolderNode>();
+        Append(root);
+        SetRows(rows, scrollToSelection: false);
 
-        var rows = new List<FolderNode>(children.Length + 1) { root };
-        rows.AddRange(children);
-        SetRows(rows);
+        void Append(FolderNode node)
+        {
+            node.Percent = node.IsOnlineOnly ? 0 : node.SizeBytes * 100d / rootSize;
+            rows.Add(node);
+            if (!node.IsFolder || !node.IsExpanded)
+                return;
+
+            var children = node.Children.ToArray();
+            Array.Sort(children, static (a, b) => b.SizeBytes.CompareTo(a.SizeBytes));
+            foreach (var child in children)
+                Append(child);
+        }
     }
 
     public void Dispose()
