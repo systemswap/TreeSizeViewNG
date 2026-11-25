@@ -108,11 +108,23 @@ Die Pakete entstehen automatisch bei jedem Push auf `main`, der das Programm än
 Stelle um 1 hoch. Sie steht in der Titelleiste, in den Eigenschaften der exe und im Namen der Pakete (auch der lokal mit
 `publish-windows.cmd` erzeugten ZIP). Für einen Sprung auf `1.1.x` nur `<VersionBase>` ändern.
 
-## Was nicht angezeigt werden kann
+## SOLIDWORKS PDM
 
-Gezählt wird, was im Dateisystem liegt. Einträge, die nur eine Explorer-Erweiterung einblendet – etwa Dateien eines
-SOLIDWORKS-PDM-Tresors, die noch nicht lokal zwischengespeichert sind –, existieren auf der Platte nicht und erscheinen
-deshalb nicht (sie belegen dort auch keinen Platz).
+Liegt im gescannten Bereich die lokale Ansicht eines PDM-Tresors, fragt TreeSizeViewNG zusätzlich den installierten
+PDM-Client, welche Dateien der Tresor enthält – auch die, die noch nicht abgerufen wurden und deshalb gar nicht auf der
+Platte liegen (der Explorer zeigt sie nur über die PDM-Erweiterung).
+
+- Die Abfrage startet zusammen mit dem Scan und hat eine eigene Fortschrittszeile je Tresor.
+- **Lokal** = Kopie auf der Platte, **In Cloud** = Größe im Tresor (auch wenn die Datei lokal vorliegt),
+  **Gesamt** zählt jede Datei einmal. „Gesamt“ ist deshalb bei PDM nicht „Lokal“ + „In Cloud“.
+- Dateien nur im Tresor: „· im Tresor“ in der Typ-Spalte, Tresor-Symbol, kursiv.
+- **Orange** in „In Cloud“: Die lokale Kopie hat eine andere Größe als die Datei im Tresor (bei Ordnern: sie enthalten so eine Datei).
+- Es wird nur gelesen – nichts abgerufen, ausgecheckt oder geändert. Angemeldet wird über den PDM-Client; die App kennt
+  keine Zugangsdaten und zeigt nur, was der angemeldete Benutzer in PDM sehen darf.
+- Nur unter Windows mit installiertem PDM-Client. Leere Ordner, die es nur im Tresor gibt, erscheinen nicht.
+
+Technik: `Services/PdmVaultReader.cs` (COM-Objekt `ConisioLib.EdmVault`, Suche über `IEdmSearch5`); `tools/pdm-probe.ps1`
+zeigt, was die Schnittstelle auf einem Rechner liefert.
 
 ## Entwickeln
 

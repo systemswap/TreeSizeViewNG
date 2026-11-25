@@ -233,7 +233,7 @@
     </Border>
 
     <!-- Statusleiste und Export unten rechts -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="0,10,0,0">
       <!-- Export-Optionen über dem Export-Button -->
       <StackPanel Grid.Row="0"
                   Grid.ColumnSpan="2"
@@ -299,6 +299,27 @@
           <TextBlock Text="{x:Static loc:Strings.ExportCsv}" />
         </StackPanel>
       </Button>
+
+      <!-- Je PDM-Tresor, der gerade abgefragt wird, eine eigene Fortschrittszeile -->
+      <ItemsControl Grid.Row="2" Grid.ColumnSpan="2" ItemsSource="{Binding PdmLines}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:PdmLine">
+            <Border Margin="0,6,0,0"
+                    Background="{DynamicResource Fine.StatusBackground}"
+                    BorderBrush="{DynamicResource Fine.StatusBorder}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="12,0"
+                    MinHeight="30">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <ProgressBar Classes="busy" Width="180" Height="8" MinHeight="8" IsIndeterminate="True" VerticalAlignment="Center" />
+                <TextBlock Classes="progress" Text="{Binding Title}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Text}" VerticalAlignment="Center" Foreground="{DynamicResource Fine.TextSecondary}" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </Grid>
   </Grid>
 </Window>

@@ -77,6 +77,26 @@ public static class Strings
         $" · zusätzlich {files:N0} Dateien in der Cloud ({size}, nicht lokal)",
         $" · plus {files:N0} files in the cloud ({size}, not local)");
 
+    // ----- SOLIDWORKS PDM -----
+    public static string FormatInVault(string type) => T($"{type} · im Tresor", $"{type} · in vault");
+    public static string TypeFolderInVault => T("Ordner · im Tresor", "Folder · in vault");
+    public static string FormatPdmTitle(string vault) => $"PDM {vault}";
+    public static string PdmConnecting => T("Tresor wird abgefragt …", "Querying vault …");
+    public static string FormatPdmReading(int files) => T($"{files:N0} Dateien aus dem Tresor gelesen", $"{files:N0} files read from the vault");
+    public static string PdmWaitingForScan => T("fertig gelesen, warte auf den Scan …", "read, waiting for the scan …");
+    public static string PdmNotLoggedIn => T("nicht am Tresor angemeldet (bitte im Explorer am PDM-Tresor anmelden und erneut scannen)", "not logged in to the vault (please log in to the PDM vault in Explorer and scan again)");
+    public static string PdmMerging => T("wird in den Baum eingetragen …", "merging into the tree …");
+    public static string FormatPdmFailed(string message) => T($"Abfrage fehlgeschlagen: {message}", $"query failed: {message}");
+    public static string FormatPdmSummary(string vault, int files, int vaultOnly, string vaultOnlySize, int mismatches) => T(
+        $" · PDM {vault}: {files:N0} Dateien im Tresor, davon {vaultOnly:N0} nur dort ({vaultOnlySize}){(mismatches > 0 ? $", {mismatches:N0} lokal abweichend" : "")}",
+        $" · PDM {vault}: {files:N0} files in the vault, {vaultOnly:N0} only there ({vaultOnlySize}){(mismatches > 0 ? $", {mismatches:N0} differ locally" : "")}");
+    public static string TotalColumnTip => T(
+        "Jede Datei einmal: die lokale Größe, sonst die Größe in der Cloud bzw. im Tresor.\nBei PDM-Dateien, die lokal und im Tresor liegen, ist „Gesamt“ deshalb nicht „Lokal“ + „In Cloud“.",
+        "Each file once: its local size, otherwise its size in the cloud or vault.\nFor PDM files that exist locally and in the vault, “Total” is therefore not “Local” + “In cloud”.");
+    public static string CloudColumnTip => T(
+        "Größe in der Cloud bzw. im PDM-Tresor. Orange: die lokale Kopie hat eine andere Größe als die Datei im Tresor.",
+        "Size in the cloud or PDM vault. Orange: the local copy differs in size from the file in the vault.");
+
     // ----- Fortschritt -----
     public static string PhaseFilter => T("Suchen", "Searching");
     public static string PhaseSort => T("Sortieren", "Sorting");

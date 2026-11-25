@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -41,6 +42,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly ProgressCounter _progress = new();
     private DispatcherTimer? _progressTimer;
     private DispatcherTimer? _liveTimer;
+    private DispatcherTimer? _pdmTimer;
+    private string _pdmInfo = string.Empty;
     private FolderNode? _liveRoot;
     private FolderNode? _selectedNode;
     private bool _suppressSelection;
@@ -84,7 +87,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>Statuszeile: Status plus ggf. Hinweis auf die aktuelle Sortierung.</summary>
-    public string StatusDisplay => StatusText + _sortInfo;
+    public string StatusDisplay => StatusText + _pdmInfo + _sortInfo;
+
+    /// <summary>Eine Fortschrittszeile je PDM-Tresor, der gerade abgefragt wird (unter der Statuszeile).</summary>
+    public ObservableCollection<PdmLine> PdmLines { get; } = [];
 
     public bool IsScanning
     {
@@ -110,9 +116,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public bool IsProgressIndeterminate => IsScanning;
 
-    public bool CanStart => !IsScanning;
-    public bool CanStop => IsScanning;
-    public bool CanExport => !_disposed && !IsScanning && !_isWorking && !_isExporting && _root is not null;
+    public bool CanStart => !IsScanning && PdmLines.Count == 0;
+    public bool CanStop => IsScanning || PdmLines.Count > 0;
+    public bool CanExport => !_disposed && !IsScanning && !_isWorking && !_isExporting && PdmLines.Count == 0 && _root is not null;
 
     /// <summary>
     /// Aus: Ebene 1 im Export ist der ausgewählte Ordner (bzw. der gescannte Ordner).
@@ -230,7 +236,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task StartScanAsync()
     {
-        if (_disposed || IsScanning)
+        if (_disposed || IsScanning || PdmLines.Count > 0)
             return;
 
         var selectedPath = FolderPath.Trim();
@@ -248,6 +254,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _filterActive = false;
         _sortKey = null;
         SetSortInfo(string.Empty);
+        _pdmInfo = string.Empty;
         Volatile.Write(ref _liveRoot, null);
         Source = CreateSource();
         SetRows([]);
@@ -275,11 +282,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 p.Files, p.Folders, SizeFormatter.Format(p.Bytes), p.SkippedEntries, p.CurrentPath);
         });
 
+        // PDM-Tresore im Scan-Bereich sofort parallel zum Scan abfragen
+        var minimumSize = ConvertMegabytesToBytes(MinimumSizeMb);
+        var pdmQueries = StartPdmQueries(selectedPath, scanCts.Token);
+
         try
         {
             var root = await _scanner.ScanAsync(
                 selectedPath,
-                ConvertMegabytesToBytes(MinimumSizeMb),
+                minimumSize,
                 progress,
                 scanCts.Token,
                 liveRoot =>
@@ -305,6 +316,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                          (root.OnlineOnlyFileCount > 0
                              ? Strings.FormatOnlineOnlySummary(root.OnlineOnlyFileCount, SizeFormatter.Format(root.OnlineOnlyBytes))
                              : string.Empty);
+
+            await MergePdmAsync(root, selectedPath, pdmQueries, minimumSize);
         }
         catch (OperationCanceledException)
         {
@@ -319,14 +332,133 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (ReferenceEquals(_scanCts, scanCts))
                 _scanCts = null;
 
+            scanCts.Cancel(); // beendet auch noch laufende PDM-Abfragen (nach Abbruch oder Fehler)
             scanCts.Dispose();
             _liveTimer?.Stop();
+            _pdmTimer?.Stop();
+            PdmLines.Clear();
             IsScanning = false;
             NotifyButtonStates();
         }
     }
 
     public void StopScan() => _scanCts?.Cancel();
+
+    // ----- SOLIDWORKS PDM: Dateien, die nur im Tresor liegen -----
+
+    private sealed record PdmQuery(PdmVault Vault, PdmLine Line, Task<List<PdmFile>> Task);
+
+    /// <summary>Startet je Tresor im Scan-Bereich eine Abfrage (läuft parallel zum Scan) samt Fortschrittszeile.</summary>
+    private List<PdmQuery> StartPdmQueries(string scanPath, CancellationToken cancellationToken)
+    {
+        var queries = new List<PdmQuery>();
+        foreach (var (vault, startPath) in PdmVaultReader.FindFor(scanPath))
+        {
+            var line = new PdmLine(Strings.FormatPdmTitle(vault.Name)) { Text = Strings.PdmConnecting };
+            PdmLines.Add(line);
+            queries.Add(new PdmQuery(vault, line, PdmVaultReader.ReadAsync(vault, startPath, count => line.Count = count, cancellationToken)));
+        }
+
+        if (queries.Count > 0)
+        {
+            _pdmTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Background, (_, _) => UpdatePdmLines());
+            _pdmTimer.Start();
+            NotifyButtonStates();
+        }
+
+        return queries;
+    }
+
+    private void UpdatePdmLines()
+    {
+        foreach (var line in PdmLines)
+        {
+            if (line.Count > 0 && !line.IsDone)
+                line.Text = Strings.FormatPdmReading(line.Count);
+        }
+    }
+
+    /// <summary>
+    /// Wartet auf die Tresor-Abfragen und trägt ihre Dateien in den fertig gescannten Baum ein
+    /// (im Hintergrund; der Baum ist so lange gesperrt). Der Baum mit den lokalen Daten ist da schon sichtbar.
+    /// </summary>
+    private async Task MergePdmAsync(FolderNode root, string scanPath, List<PdmQuery> queries, long minimumSize)
+    {
+        if (queries.Count == 0)
+            return;
+
+        var info = string.Empty;
+        foreach (var query in queries)
+        {
+            List<PdmFile> files;
+            try
+            {
+                files = await query.Task;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Write($"PDM {query.Vault.Name}", ex);
+                info += " · " + query.Line.Title + ": " + Strings.FormatPdmFailed(ex.Message);
+                PdmLines.Remove(query.Line);
+                continue;
+            }
+
+            if (_disposed || !ReferenceEquals(_root, root))
+                return;
+
+            query.Line.IsDone = true;
+            query.Line.Text = Strings.PdmMerging;
+            SetWorking(true);
+            try
+            {
+                var sortKey = _sortKey;
+                var direction = _sortDirection;
+                var result = await Task.Run(() =>
+                {
+                    var merged = PdmVaultReader.Merge(root, scanPath, files, minimumSize);
+                    if (sortKey is { } key)
+                        TreeSorter.Sort(root, key, direction);
+                    else
+                        TreeSorter.SortDefault(root);
+                    return merged;
+                });
+
+                info += Strings.FormatPdmSummary(query.Vault.Name, result.VaultFiles, result.VaultOnlyFiles,
+                    SizeFormatter.Format(result.VaultOnlyBytes), result.Mismatches);
+            }
+            finally
+            {
+                SetWorking(false);
+                PdmLines.Remove(query.Line);
+            }
+        }
+
+        // Neue Einträge können tiefer liegen und brauchen ggf. die Spalten "In Cloud" und "Gesamt"
+        var wasFullyExpanded = _currentExpansionDepth >= _maximumExpansionDepth;
+        _maximumExpansionDepth = root.GetMaxDepth();
+        if (wasFullyExpanded)
+            _currentExpansionDepth = _maximumExpansionDepth;
+        _pdmInfo = info;
+        OnPropertyChanged(nameof(StatusDisplay));
+        Source = CreateSource();
+        ApplySortArrow();
+        PdmLines.Clear();
+        if (SearchText.Trim().Length > 0)
+            await ApplySearchAsync();
+        else
+            SetExpansionLevel(_currentExpansionDepth);
+    }
+
+    private void ApplySortArrow()
+    {
+        var index = _sortKey is { } key ? Source.ColumnKeys.IndexOf(key) : -1;
+        if (index >= 0)
+            Source.Columns[index].SortDirection = _sortDirection;
+    }
 
     public void ReportError(string message) => StatusText = Strings.FormatErrorWithLog(message, ErrorLog.FilePath);
 
@@ -855,9 +987,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             // Drei Größen, sobald es Dateien gibt, die nur online liegen
             Add(SortColumn.Local, new TextColumn<FolderNode, string>(Strings.ColumnLocal, node => node.LocalText,
                 new GridLength(125), CreateLongOptions(node => node.LocalBytes)));
-            Add(SortColumn.Online, new TextColumn<FolderNode, string>(Strings.ColumnOnline, node => node.OnlineText,
-                new GridLength(115), CreateLongOptions(node => node.OnlineBytes)));
-            Add(SortColumn.Total, new TextColumn<FolderNode, string>(Strings.ColumnTotal, node => node.TotalText,
+            Add(SortColumn.Online, new TemplateColumn<FolderNode>(
+                Header(Strings.ColumnOnline, Strings.CloudColumnTip),
+                CreateCloudCellTemplate(),
+                null,
+                new GridLength(115),
+                new TemplateColumnOptions<FolderNode>
+                {
+                    CompareAscending = (left, right) => CompareValues(left, right, node => node.OnlineBytes),
+                    CompareDescending = (left, right) => CompareValues(right, left, node => node.OnlineBytes)
+                }));
+            Add(SortColumn.Total, new TextColumn<FolderNode, string>(Header(Strings.ColumnTotal, Strings.TotalColumnTip), node => node.TotalText,
                 new GridLength(115), CreateLongOptions(node => node.TotalBytes)));
         }
         else
@@ -877,6 +1017,37 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         return source;
     }
 
+    /// <summary>Spaltenüberschrift mit erklärendem Tooltip.</summary>
+    private static TextBlock Header(string text, string tip)
+    {
+        var header = new TextBlock { Text = text };
+        ToolTip.SetTip(header, tip);
+        return header;
+    }
+
+    /// <summary>
+    /// Zelle "In Cloud": rechtsbündige Größe; orange, wenn die lokale Kopie einer PDM-Datei eine andere
+    /// Größe hat als die Datei im Tresor (bei Ordnern: wenn sie so eine Datei enthalten).
+    /// </summary>
+    private static IDataTemplate CreateCloudCellTemplate() =>
+        new FuncDataTemplate<FolderNode>((node, _) =>
+        {
+            var text = new TextBlock
+            {
+                Text = node?.OnlineText ?? string.Empty,
+                TextAlignment = TextAlignment.Right,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0)
+            };
+            if (node is { HasSizeMismatch: true })
+            {
+                text.Foreground = Brush.Parse("#E07B00");
+                text.FontWeight = FontWeight.SemiBold;
+            }
+            return text;
+        });
+
     private static readonly IValueConverter ChevronConverter =
         new FuncValueConverter<bool, MaterialIconKind>(expanded => expanded ? MaterialIconKind.ChevronDown : MaterialIconKind.ChevronRight);
 
@@ -894,7 +1065,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 VerticalAlignment = VerticalAlignment.Center,
                 Foreground = node.IsFolder
                     ? Brush.Parse("#E5A50A")
-                    : node.IsOnlineOnly ? Brush.Parse("#5B8DEF") : Brush.Parse("#64748B")
+                    : node.IsVaultOnly ? Brush.Parse("#8B7CF6") : node.IsOnlineOnly ? Brush.Parse("#5B8DEF") : Brush.Parse("#64748B")
             };
 
             var name = new TextBlock
@@ -903,7 +1074,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
-            if (node.IsOnlineOnly || node.IsOnlineOnlyFolder)
+            if (node.IsOnlineOnly || node.IsOnlineOnlyFolder || node.IsVaultOnly)
             {
                 // nicht auf der Platte: blasser und kursiv
                 name.FontStyle = FontStyle.Italic;

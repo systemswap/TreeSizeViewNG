@@ -76,6 +76,27 @@ public sealed class FolderNode : INotifyPropertyChanged
     /// </summary>
     public bool IsOnlineOnly { get; init; }
 
+    /// <summary>
+    /// Eintrag stammt aus einem SOLIDWORKS-PDM-Tresor und liegt nicht auf der Platte (bei Dateien
+    /// zusätzlich <see cref="IsOnlineOnly"/>; bei Ordnern: den Ordner gibt es nur im Tresor).
+    /// </summary>
+    public bool IsVaultOnly { get; init; }
+
+    /// <summary>
+    /// PDM: Tresor-Größe der Dateien, die AUCH lokal vorliegen (bei einer Datei ihre eigene Tresor-Größe,
+    /// bei Ordnern die Summe). Sie erscheint in "In Cloud", zählt aber nicht zu "Gesamt" – die Datei
+    /// belegt nur einmal Platz.
+    /// </summary>
+    public long VaultLocalBytes { get; set; }
+
+    /// <summary>PDM: Anzahl der Dateien, deren lokale Größe von der Tresor-Größe abweicht (Datei: 0 oder 1).</summary>
+    public int MismatchCount { get; set; }
+
+    public bool HasSizeMismatch => MismatchCount > 0;
+
+    /// <summary>PDM: Ordner enthält Dateien, die nur im Tresor liegen.</summary>
+    public bool HasVaultOnlyContent { get; set; }
+
     public long SizeBytes { get; set; }
     public long FileCount { get; set; }
     public long FolderCount { get; set; }
@@ -98,8 +119,11 @@ public sealed class FolderNode : INotifyPropertyChanged
 
     // Drei Größen: auf der Platte, nur online (Cloud-Platzhalter), gesamt
     public long LocalBytes => IsOnlineOnly ? 0 : SizeBytes;
-    public long OnlineBytes => IsOnlineOnly ? SizeBytes : OnlineOnlyBytes;
-    public long TotalBytes => LocalBytes + OnlineBytes;
+    // "In Cloud": was nur online/im Tresor liegt, plus die Tresor-Größe lokal vorhandener PDM-Dateien.
+    // "Gesamt": jede Datei einmal (lokale Größe, sonst die Größe online/im Tresor).
+    private long CloudOnlyBytes => IsOnlineOnly ? SizeBytes : OnlineOnlyBytes;
+    public long OnlineBytes => CloudOnlyBytes + VaultLocalBytes;
+    public long TotalBytes => LocalBytes + CloudOnlyBytes;
 
     public string SizeText => SizeFormatter.Format(LocalBytes);
     public string LocalText => IsOnlineOnly ? "–" : SizeFormatter.Format(LocalBytes);
@@ -110,10 +134,12 @@ public sealed class FolderNode : INotifyPropertyChanged
     public string PercentText => IsOnlineOnly ? "–" : $"{Percent:N1} %";
     public MaterialIconKind IconKind => FileTypeIconResolver.GetIconKind(this);
     public string TypeText => IsFolder
-        ? (IsOnlineOnlyFolder ? Strings.TypeFolderOnlineOnly : Strings.TypeFolder)
-        : IsOnlineOnly
-            ? Strings.FormatOnlineOnly(FileTypeIconResolver.GetTypeText(Name))
-            : FileTypeIconResolver.GetTypeText(Name);
+        ? (IsVaultOnly || (IsOnlineOnlyFolder && HasVaultOnlyContent) ? Strings.TypeFolderInVault : IsOnlineOnlyFolder ? Strings.TypeFolderOnlineOnly : Strings.TypeFolder)
+        : IsVaultOnly
+            ? Strings.FormatInVault(FileTypeIconResolver.GetTypeText(Name))
+            : IsOnlineOnly
+                ? Strings.FormatOnlineOnly(FileTypeIconResolver.GetTypeText(Name))
+                : FileTypeIconResolver.GetTypeText(Name);
 
     /// <summary>Gefilterte Kopie des Teilbaums (für den Export bei aktiver Suche).</summary>
     public FolderNode CreateFilteredCopy(string searchText) =>
@@ -127,6 +153,10 @@ public sealed class FolderNode : INotifyPropertyChanged
             FullPath = explicitPath!, // null: Pfad ergibt sich aus der Elternkette der Kopie
             IsFolder = IsFolder,
             IsOnlineOnly = IsOnlineOnly,
+            IsVaultOnly = IsVaultOnly,
+            VaultLocalBytes = VaultLocalBytes,
+            MismatchCount = MismatchCount,
+            HasVaultOnlyContent = HasVaultOnlyContent,
             Depth = Depth,
             SizeBytes = SizeBytes,
             FileCount = FileCount,
@@ -200,9 +230,11 @@ public static class FileTypeIconResolver
     {
         // Nur online: Wolke statt Dateityp; Ordner ohne lokale Dateien: hohler Ordner.
         var name = node.IsFolder
-            ? (node.IsOnlineOnlyFolder ? "FolderOutline" : "Folder")
-            : node.IsOnlineOnly
-                ? "CloudOutline"
+            ? (node.IsOnlineOnlyFolder || node.IsVaultOnly ? "FolderOutline" : "Folder")
+            : node.IsVaultOnly
+                ? "Safe" // nur im PDM-Tresor
+                : node.IsOnlineOnly
+                    ? "CloudOutline"
                 : Icons.GetValueOrDefault(Path.GetExtension(node.Name), "FileOutline");
 
         if (Enum.TryParse<MaterialIconKind>(name, true, out var icon))
