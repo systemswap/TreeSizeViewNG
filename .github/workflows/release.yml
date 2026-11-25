@@ -6,10 +6,9 @@
 #   2. Windows und Linux bauen, jedes Paket direkt in den Entwurf hochladen
 #   3. Release veröffentlichen – oder bei einem Fehler den Entwurf wieder löschen
 #
-# Versionsnummer: Haupt- und Nebenversion aus <Version> in TreeSizeViewNG.csproj, dazu eine laufende
-# Nummer, die an das letzte Release dieser Reihe anschließt (erstes Release = .0).
-# Beispiel: <Version>1.0.0</Version> → v1.0.0, v1.0.1, v1.0.2 …
-# Für einen Sprung auf 1.1.x nur <Version> im csproj ändern.
+# Versionsnummer: <VersionBase> aus TreeSizeViewNG.csproj plus Anzahl der Commits – jeder Commit
+# zählt die letzte Stelle um 1 hoch. Dieselbe Nummer steht in der Titelleiste des Programms und
+# im Namen der Pakete. Für einen Sprung auf 1.1.x nur <VersionBase> im csproj ändern.
 #
 # Gebaut wird wie lokal mit publish-windows.cmd: eigenständige Einzeldatei, ReadyToRun, unkomprimiert
 # (schnellster Start), auf dem Zielrechner muss nichts installiert sein.
@@ -52,21 +51,21 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # alle Commits: ihre Anzahl ist die letzte Stelle der Version
       - id: v
         name: Version bestimmen
         run: |
-          base=$(sed -n 's:.*<Version>\([0-9]*\.[0-9]*\)\..*</Version>.*:\1:p' TreeSizeViewNG.csproj | head -n1)
-          if [ -z "$base" ]; then echo "Keine <Version> im csproj gefunden" >&2; exit 1; fi
-          pattern="^v${base//./\\.}\\.([0-9]+)$"
-          last=$(gh release list --limit 1000 --json tagName -q '.[].tagName' \
-                 | sed -nE "s/${pattern}/\\1/p" | sort -n | tail -n1)
-          if [ -z "$last" ]; then n=0; else n=$((last + 1)); fi
-          version="$base.$n"
+          base=$(sed -n 's:.*<VersionBase>\(.*\)</VersionBase>.*:\1:p' TreeSizeViewNG.csproj | head -n1)
+          if [ -z "$base" ]; then echo "Keine <VersionBase> im csproj gefunden" >&2; exit 1; fi
+          version="$base.$(git rev-list --count HEAD)"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Version: $version"
       - name: Entwurf anlegen
         run: |
           v=${{ steps.v.outputs.version }}
+          # erneuter Lauf für denselben Commit: alten Stand ersetzen
+          gh release delete "v$v" --yes --cleanup-tag 2>/dev/null || true
           gh release create "v$v" --draft \
             --target "$GITHUB_SHA" \
             --title "TreeSizeViewNG $v" \
@@ -94,6 +93,8 @@ jobs:
       VERSION: ${{ needs.entwurf.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # alle Commits: ihre Anzahl ist die letzte Stelle der Version
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
@@ -105,7 +106,6 @@ jobs:
             --runtime ${{ matrix.rid }} \
             --self-contained true \
             --output out \
-            -p:Version=$VERSION \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
             -p:EnableCompressionInSingleFile=false \
@@ -118,7 +118,7 @@ jobs:
         run: |
           mkdir pakete
           if [ "${{ matrix.rid }}" = "win-x64" ]; then
-            cp out/TreeSizeViewNG.exe "pakete/TreeSizeViewNG-$VERSION-windows-x64.exe"
+            (cd out && 7z a -tzip -mx=5 "../pakete/TreeSizeViewNG-$VERSION-windows-x64.zip" TreeSizeViewNG.exe > /dev/null)
           else
             chmod +x out/TreeSizeViewNG
             tar -czf "pakete/TreeSizeViewNG-$VERSION-linux-x64.tar.gz" -C out TreeSizeViewNG

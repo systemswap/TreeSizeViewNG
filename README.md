@@ -96,13 +96,15 @@ Unter [**Releases**](../../releases/latest) liegen fertige Pakete:
 
 | System | Datei | Start |
 |---|---|---|
-| Windows x64 | `TreeSizeViewNG-<Version>-windows-x64.exe` | Doppelklick |
+| Windows x64 | `TreeSizeViewNG-<Version>-windows-x64.zip` | entpacken, `TreeSizeViewNG.exe` starten |
 | Linux x64 | `TreeSizeViewNG-<Version>-linux-x64.tar.gz` | `tar -xzf TreeSizeViewNG-*-linux-x64.tar.gz && ./TreeSizeViewNG` |
 
 Die Pakete entstehen automatisch bei jedem Push auf `main`, der das Programm ändert (`.github/workflows/release.yml`; reine
-Änderungen an Startseite und Dokumentation erzeugen kein Release). Version = Haupt-/Nebenversion aus `<Version>` im csproj plus
-laufende Nummer, die an das letzte Release anschließt, z. B. `v1.0.0`, `v1.0.1` … Für einen Sprung auf `1.1.x` nur `<Version>` im
-csproj ändern.
+Änderungen an Startseite und Dokumentation erzeugen kein Release).
+
+**Versionsnummer:** `<VersionBase>` aus dem csproj plus Anzahl der Git-Commits, z. B. `1.0.10` – jeder Commit zählt die letzte
+Stelle um 1 hoch. Sie steht in der Titelleiste, in den Eigenschaften der exe und im Namen der Pakete (auch der lokal mit
+`publish-windows.cmd` erzeugten ZIP). Für einen Sprung auf `1.1.x` nur `<VersionBase>` ändern.
 
 ## Was nicht angezeigt werden kann
 

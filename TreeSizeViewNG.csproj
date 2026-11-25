@@ -9,7 +9,10 @@
     <LangVersion>latest</LangVersion>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Deterministic>true</Deterministic>
-    <Version>1.0.0</Version>
+    <!-- Version = VersionBase + Anzahl der Git-Commits (siehe Target SetVersionFromGit):
+         jeder Commit zählt die letzte Stelle um 1 hoch. Für 1.1.x nur VersionBase ändern. -->
+    <VersionBase>1.0</VersionBase>
+    <Version>$(VersionBase).0</Version>
     <Product>TreeSizeViewNG</Product>
     <!-- Programmsymbol der exe (Explorer, Taskleiste); erzeugt von tools/make-icon.cs -->
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>
@@ -38,4 +41,24 @@
     <PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.1.0" />
     <PackageReference Include="Material.Icons.Avalonia" Version="2.3.1" />
   </ItemGroup>
+
+  <!-- Zählt die Commits und setzt daraus die Version (Titelleiste, exe-Eigenschaften, Paketnamen).
+       Ohne Git (z. B. Quelltext als ZIP) bleibt es bei VersionBase.0. -->
+  <Target Name="SetVersionFromGit" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;BeforeBuild">
+    <Exec Command="git rev-list --count HEAD"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitCount" />
+      <Output TaskParameter="ExitCode" PropertyName="GitCommitCountExit" />
+    </Exec>
+    <PropertyGroup Condition="'$(GitCommitCountExit)' == '0' and '$(GitCommitCount)' != ''">
+      <Version>$(VersionBase).$(GitCommitCount)</Version>
+      <AssemblyVersion>$(Version).0</AssemblyVersion>
+      <FileVersion>$(Version).0</FileVersion>
+      <InformationalVersion>$(Version)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
 </Project>

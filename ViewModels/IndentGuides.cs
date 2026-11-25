@@ -11,7 +11,7 @@ namespace TreeSizeViewNG.ViewModels;
 /// Linien, an denen man beim Scrollen eine Ebene verfolgen kann.
 ///
 /// Hervorgehoben wird die Linie der Ebene des gewählten Ordners (sie beginnt unter seinem Pfeil):
-/// bei allen Ordnern dieser Ebene etwas dicker, im gewählten Ordner selbst zusätzlich farbig.
+/// bei allen Ordnern dieser Ebene dicker und farbig.
 /// </summary>
 public sealed class IndentGuides : Control
 {
@@ -19,7 +19,6 @@ public sealed class IndentGuides : Control
     private const double LineOffset = 11; // Mitte des Aufklapp-Pfeils der jeweiligen Ebene
 
     private static readonly IPen Thin = new Pen(new SolidColorBrush(Color.FromArgb(110, 138, 147, 160)), 1);
-    private static readonly IPen Level = new Pen(new SolidColorBrush(Color.FromArgb(170, 138, 147, 160)), 2);
     private static readonly IPen Active = new Pen(new SolidColorBrush(Color.FromRgb(91, 141, 239)), 2);
 
     private static FolderNode? _selected;
@@ -70,23 +69,14 @@ public sealed class IndentGuides : Control
         var top = -overdraw;
         var bottom = Bounds.Height + overdraw;
 
-        // Hervorgehoben wird die Linie, die am gewählten Ordner beginnt (unter seinem Pfeil, durch seinen
-        // Inhalt). Bei einer gewählten Datei ist es die Linie ihres Ordners.
+        // Hervorgehoben wird die Linie der Ebene des gewählten Ordners (sie beginnt unter seinem Pfeil) –
+        // durchgehend bei allen Ordnern dieser Ebene. Bei einer gewählten Datei ist es die Ebene ihres Ordners.
         var owner = _selected is { IsFolder: false } file ? file.Parent : _selected;
         var activeLevel = owner is null ? -1 : owner.Depth;
-        var sameBlock = false;
-        if (activeLevel >= 0 && activeLevel < depth)
-        {
-            // Liegt diese Zeile im gewählten Ordner (ihr Vorfahre auf dieser Ebene ist er selbst)?
-            var ancestor = _node;
-            while (ancestor is not null && ancestor.Depth > activeLevel)
-                ancestor = ancestor.Parent;
-            sameBlock = ReferenceEquals(ancestor, owner);
-        }
 
         for (var level = 0; level < depth; level++)
         {
-            var pen = level != activeLevel ? Thin : sameBlock ? Active : Level;
+            var pen = level == activeLevel ? Active : Thin;
             var x = Math.Floor(level * LevelWidth + LineOffset) + (pen.Thickness % 2 == 1 ? 0.5 : 0);
             context.DrawLine(pen, new Point(x, top), new Point(x, bottom));
         }

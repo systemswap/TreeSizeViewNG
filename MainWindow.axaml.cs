@@ -14,6 +14,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // Versionsnummer in der Titelleiste (Haupt.Neben.Commit-Anzahl)
+        Title = $"TreeSizeViewNG {typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}";
         var viewModel = new MainWindowViewModel();
         DataContext = viewModel;
         // Gewählte Zeile nach Auf-/Zuklappen sichtbar halten (erst nach dem Layout der neuen Zeilen)

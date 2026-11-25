@@ -65,6 +65,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem Zusaetzlich als ZIP mit der Versionsnummer im Namen (aeltere ZIPs werden ersetzt)
+del /q "publish\TreeSizeViewNG-*-windows-x64.zip" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$v = (Get-Item '%OUTPUT%\TreeSizeViewNG.exe').VersionInfo.ProductVersion.Split('+')[0]; $zip = 'publish\TreeSizeViewNG-' + $v + '-windows-x64.zip'; Compress-Archive -Force -Path '%OUTPUT%\TreeSizeViewNG.exe' -DestinationPath $zip; Write-Host ('Version ' + $v + ': ' + $zip)"
+
 echo.
 echo Fertig: %~dp0%OUTPUT%\TreeSizeViewNG.exe
 pause
