@@ -1,58 +1,156 @@
-using System.Collections.ObjectModel;
+using System.ComponentModel;
 using Material.Icons;
 using TreeSizeViewNG.Localization;
 
 namespace TreeSizeViewNG.Models;
 
-public sealed class FolderNode
+public sealed class FolderNode : INotifyPropertyChanged
 {
+    private string? _path;
+    private bool _isExpanded;
+
     public required string Name { get; init; }
-    public required string FullPath { get; init; }
+
+    /// <summary>
+    /// Voller Pfad. Wird nur beim Stammordner gespeichert und sonst aus der Elternkette gebildet –
+    /// das spart bei Millionen Dateien viel Speicher und Zeit beim Scan.
+    /// </summary>
+    public string FullPath
+    {
+        get => _path ?? (Parent is null ? Name : Path.Combine(Parent.FullPath, Name));
+        init => _path = value;
+    }
+
+    public FolderNode? Parent { get; set; }
+
+    /// <summary>Tiefe im Baum (Stammordner = 0).</summary>
+    public int Depth { get; set; }
+
+    /// <summary>Für die Anzeige: Ordner ist aufgeklappt (die sichtbare Zeilenliste baut das ViewModel).</summary>
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded == value)
+                return;
+            _isExpanded = value;
+            PropertyChanged?.Invoke(this, IsExpandedChanged);
+        }
+    }
+
+    /// <summary>Für die Suche: Eintrag passt selbst oder enthält passende Einträge.</summary>
+    public bool MatchesFilter { get; set; } = true;
+
+    private static readonly PropertyChangedEventArgs IsExpandedChanged = new(nameof(IsExpanded));
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public bool HasChildren => IsFolder && (_children is { Count: > 0 } || FileCount + FolderCount + OnlineOnlyFileCount > 0);
+
+    /// <summary>Setzt die fertige Kinderliste in einem Schritt (der Scanner veröffentlicht sie so für die Live-Anzeige).</summary>
+    public void SetChildren(List<FolderNode> children) => _children = children;
+
+    /// <summary>Setzt Parent und Depth im ganzen Teilbaum (für von Hand gebaute Bäume, z. B. in Tests).</summary>
+    public void FixupTree()
+    {
+        var stack = new Stack<FolderNode>();
+        stack.Push(this);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            foreach (var child in node.Children)
+            {
+                child.Parent = node;
+                child.Depth = node.Depth + 1;
+                stack.Push(child);
+            }
+        }
+    }
+
     public bool IsFolder { get; init; } = true;
+
+    /// <summary>
+    /// Datei liegt nur online (Cloud-Platzhalter, z. B. OneDrive „Dateien bei Bedarf“): sie wird
+    /// angezeigt, belegt aber keinen Platz auf der Platte und zählt deshalb nicht zu Größe/Anteil
+    /// der Ordner. <see cref="SizeBytes"/> ist bei ihr die Dateigröße online.
+    /// </summary>
+    public bool IsOnlineOnly { get; init; }
+
     public long SizeBytes { get; set; }
     public long FileCount { get; set; }
     public long FolderCount { get; set; }
+
+    /// <summary>Bei Ordnern: Anzahl und Größe der enthaltenen Dateien, die nur online liegen.</summary>
+    public long OnlineOnlyFileCount { get; set; }
+    public long OnlineOnlyBytes { get; set; }
+
     public double Percent { get; set; }
-    public ObservableCollection<FolderNode> Children { get; } = [];
+    // Kinder als schlichte Liste: nach dem Scan ändert sich nur noch die Reihenfolge (beim Sortieren,
+    // während die Liste nicht angezeigt wird), eine ObservableCollection je Knoten wäre bei Millionen
+    // Dateien nur Ballast. Dateien teilen sich eine leere Liste (sie bekommen nie Kinder).
+    private static readonly List<FolderNode> NoChildren = new(0);
+    private List<FolderNode>? _children;
 
-    public string SizeText => SizeFormatter.Format(SizeBytes);
-    public string FileCountText => IsFolder ? FileCount.ToString("N0") : "1";
+    public List<FolderNode> Children => _children ??= IsFolder ? [] : NoChildren;
+
+    /// <summary>Ordner, der nur Online-Dateien enthält (nichts davon liegt auf der Platte).</summary>
+    public bool IsOnlineOnlyFolder => IsFolder && FileCount == 0 && OnlineOnlyFileCount > 0;
+
+    // Drei Größen: auf der Platte, nur online (Cloud-Platzhalter), gesamt
+    public long LocalBytes => IsOnlineOnly ? 0 : SizeBytes;
+    public long OnlineBytes => IsOnlineOnly ? SizeBytes : OnlineOnlyBytes;
+    public long TotalBytes => LocalBytes + OnlineBytes;
+
+    public string SizeText => SizeFormatter.Format(LocalBytes);
+    public string LocalText => IsOnlineOnly ? "–" : SizeFormatter.Format(LocalBytes);
+    public string OnlineText => OnlineBytes > 0 ? SizeFormatter.Format(OnlineBytes) : "–";
+    public string TotalText => SizeFormatter.Format(TotalBytes);
+    public string FileCountText => IsFolder ? FileCount.ToString("N0") : IsOnlineOnly ? "–" : "1";
     public string FolderCountText => IsFolder ? FolderCount.ToString("N0") : string.Empty;
-    public string PercentText => $"{Percent:N1} %";
+    public string PercentText => IsOnlineOnly ? "–" : $"{Percent:N1} %";
     public MaterialIconKind IconKind => FileTypeIconResolver.GetIconKind(this);
-    public string TypeText => IsFolder ? Strings.TypeFolder : FileTypeIconResolver.GetTypeText(FullPath);
+    public string TypeText => IsFolder
+        ? (IsOnlineOnlyFolder ? Strings.TypeFolderOnlineOnly : Strings.TypeFolder)
+        : IsOnlineOnly
+            ? Strings.FormatOnlineOnly(FileTypeIconResolver.GetTypeText(Name))
+            : FileTypeIconResolver.GetTypeText(Name);
 
-    public FolderNode CreateFilteredCopy(string searchText, int depthLimit)
+    /// <summary>Gefilterte Kopie des Teilbaums (für den Export bei aktiver Suche).</summary>
+    public FolderNode CreateFilteredCopy(string searchText) =>
+        CreateFilteredCopy(searchText?.Trim() ?? string.Empty, FullPath);
+
+    private FolderNode CreateFilteredCopy(string search, string? explicitPath)
     {
-        var trimmed = searchText?.Trim() ?? string.Empty;
-        var comparison = StringComparison.OrdinalIgnoreCase;
-
-        var copy = CloneWithoutChildren();
-        if (depthLimit <= 0)
-            return copy;
+        var copy = new FolderNode
+        {
+            Name = Name,
+            FullPath = explicitPath!, // null: Pfad ergibt sich aus der Elternkette der Kopie
+            IsFolder = IsFolder,
+            IsOnlineOnly = IsOnlineOnly,
+            Depth = Depth,
+            SizeBytes = SizeBytes,
+            FileCount = FileCount,
+            FolderCount = FolderCount,
+            OnlineOnlyFileCount = OnlineOnlyFileCount,
+            OnlineOnlyBytes = OnlineOnlyBytes,
+            Percent = Percent
+        };
 
         foreach (var child in Children)
         {
-            var childCopy = child.CreateFilteredCopy(trimmed, depthLimit - 1);
-            var childMatches = child.Name.Contains(trimmed, comparison);
-            if (childMatches || childCopy.Children.Count > 0)
+            var childCopy = child.CreateFilteredCopy(search, null);
+            if (child.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || childCopy.Children.Count > 0)
+            {
+                childCopy.Parent = copy;
                 copy.Children.Add(childCopy);
+            }
         }
 
         return copy;
     }
 
-    public FolderNode CreateDepthLimitedCopy(int depthLimit)
-    {
-        var copy = CloneWithoutChildren();
-        if (depthLimit <= 0)
-            return copy;
-
-        foreach (var child in Children)
-            copy.Children.Add(child.CreateDepthLimitedCopy(depthLimit - 1));
-
-        return copy;
-    }
+    /// <summary>Anzahl aller Knoten (dieser plus alle darunter) – für Fortschrittsanzeigen.</summary>
+    public long NodeCount => 1 + FolderCount + FileCount + OnlineOnlyFileCount;
 
     public int GetMaxDepth()
     {
@@ -65,17 +163,6 @@ public sealed class FolderNode
 
         return maxChildDepth + 1;
     }
-
-    private FolderNode CloneWithoutChildren() => new()
-    {
-        Name = Name,
-        FullPath = FullPath,
-        IsFolder = IsFolder,
-        SizeBytes = SizeBytes,
-        FileCount = FileCount,
-        FolderCount = FolderCount,
-        Percent = Percent
-    };
 }
 
 public static class FileTypeIconResolver
@@ -111,9 +198,12 @@ public static class FileTypeIconResolver
 
     public static MaterialIconKind GetIconKind(FolderNode node)
     {
+        // Nur online: Wolke statt Dateityp; Ordner ohne lokale Dateien: hohler Ordner.
         var name = node.IsFolder
-            ? "Folder"
-            : Icons.GetValueOrDefault(Path.GetExtension(node.FullPath), "FileOutline");
+            ? (node.IsOnlineOnlyFolder ? "FolderOutline" : "Folder")
+            : node.IsOnlineOnly
+                ? "CloudOutline"
+                : Icons.GetValueOrDefault(Path.GetExtension(node.Name), "FileOutline");
 
         if (Enum.TryParse<MaterialIconKind>(name, true, out var icon))
             return icon;

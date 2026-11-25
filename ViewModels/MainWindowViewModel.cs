@@ -1,11 +1,17 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
+using Avalonia.Data.Converters;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
+using Material.Icons;
 using Material.Icons.Avalonia;
 using TreeSizeViewNG.Localization;
 using TreeSizeViewNG.Models;
@@ -25,21 +31,29 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool _isScanning;
     private bool _isExporting;
     private SortableTreeSource _source;
-    private bool _isRebuilding;
-    private int _rebuildVersion;
+    private RowList _rows = new([]);
+    private bool _isWorking;
+    private bool _filterActive;
     private int _searchVersion;
-    private int? _sortColumnIndex;
+    private SortColumn? _sortKey;
     private ListSortDirection _sortDirection = ListSortDirection.Descending;
     private string _sortInfo = string.Empty;
+    private readonly ProgressCounter _progress = new();
+    private DispatcherTimer? _progressTimer;
+    private DispatcherTimer? _liveTimer;
+    private FolderNode? _liveRoot;
+    private FolderNode? _selectedNode;
+    private bool _suppressSelection;
+    private double _progressPercent;
+    private string _progressText = string.Empty;
     private bool _disposed;
     private int _currentExpansionDepth;
     private int _maximumExpansionDepth;
-    private string? _selectedPath;
     private bool _includeParentLevels;
 
     public MainWindowViewModel()
     {
-        _source = CreateSource(Array.Empty<FolderNode>());
+        _source = CreateSource();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -76,11 +90,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>Fortschrittsanzeige: beim Scannen und während der Baum (z. B. sortiert) neu aufgebaut wird.</summary>
-    public bool IsBusy => IsScanning || _isRebuilding;
+    public bool IsBusy => IsScanning || _isWorking;
+
+    /// <summary>Fortschritt in Prozent (Kopieren, Sortieren, Aufklappen); beim Scan unbestimmt.</summary>
+    public double ProgressPercent
+    {
+        get => _progressPercent;
+        private set => Set(ref _progressPercent, value);
+    }
+
+    public string ProgressText
+    {
+        get => _progressText;
+        private set => Set(ref _progressText, value);
+    }
+
+    public bool IsProgressIndeterminate => IsScanning;
 
     public bool CanStart => !IsScanning;
     public bool CanStop => IsScanning;
-    public bool CanExport => !_disposed && !IsScanning && !_isExporting && _root is not null;
+    public bool CanExport => !_disposed && !IsScanning && !_isWorking && !_isExporting && _root is not null;
 
     /// <summary>
     /// Aus: Ebene 1 im Export ist der ausgewählte Ordner (bzw. der gescannte Ordner).
@@ -118,8 +147,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return $"TreeSize_{name}_{DateTime.Now:yyyy-MM-dd_HHmm}.csv";
         }
     }
-    public bool CanExpandOneLevel => !_disposed && _root is not null && _currentExpansionDepth < _maximumExpansionDepth;
-    public bool CanCollapseOneLevel => !_disposed && _root is not null && _currentExpansionDepth > 0;
+    public bool CanExpandOneLevel => CanInteract && _currentExpansionDepth < _maximumExpansionDepth;
+    public bool CanCollapseOneLevel => CanInteract && _currentExpansionDepth > 0;
+
+    /// <summary>Baum darf verändert werden (nicht während Scan, Sortieren oder Suchen).</summary>
+    private bool CanInteract => !_disposed && !IsScanning && !_isWorking && _root is not null;
     public string ExpansionDepthText => _root is null
         ? Strings.LevelNone
         : Strings.FormatLevel(_currentExpansionDepth, _maximumExpansionDepth);
@@ -163,9 +195,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         var scanCts = new CancellationTokenSource();
         _scanCts = scanCts;
+        // Neuer Scan: alte Ergebnisse weg, Live-Anzeige der obersten Ordner starten
+        _root = null;
+        _selectedNode = null;
+        _filterActive = false;
+        _sortKey = null;
+        SetSortInfo(string.Empty);
+        Volatile.Write(ref _liveRoot, null);
+        Source = CreateSource();
+        SetRows([]);
         IsScanning = true;
         NotifyButtonStates();
         StatusText = Strings.ScanStarting;
+        _liveTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(400), DispatcherPriority.Background, (_, _) => ShowLiveRows());
+        _liveTimer.Start();
 
         var progress = new Progress<ScanProgress>(p =>
         {
@@ -179,17 +222,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 selectedPath,
                 ConvertMegabytesToBytes(MinimumSizeMb),
                 progress,
-                scanCts.Token);
+                scanCts.Token,
+                liveRoot => Volatile.Write(ref _liveRoot, liveRoot));
 
+            _liveTimer?.Stop();
             if (_disposed)
                 return;
 
             _root = root;
-            _selectedPath = null;
             _maximumExpansionDepth = root.GetMaxDepth();
             _currentExpansionDepth = _maximumExpansionDepth;
-            ApplyFilter();
-            StatusText = Strings.FormatScanDone(root.FileCount, root.FolderCount, root.SizeText);
+            Source = CreateSource(); // jetzt ggf. mit den Spalten "Nur online" und "Gesamt"
+            IsScanning = false;
+            if (SearchText.Trim().Length > 0)
+                await ApplySearchAsync();
+            else
+                SetExpansionLevel(_currentExpansionDepth);
+            StatusText = Strings.FormatScanDone(root.FileCount, root.FolderCount, root.SizeText) +
+                         (root.OnlineOnlyFileCount > 0
+                             ? Strings.FormatOnlineOnlySummary(root.OnlineOnlyFileCount, SizeFormatter.Format(root.OnlineOnlyBytes))
+                             : string.Empty);
         }
         catch (OperationCanceledException)
         {
@@ -205,6 +257,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 _scanCts = null;
 
             scanCts.Dispose();
+            _liveTimer?.Stop();
             IsScanning = false;
             NotifyButtonStates();
         }
@@ -232,7 +285,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var search = SearchText.Trim();
-            var exportRoot = search.Length == 0 ? root : root.CreateFilteredCopy(search, int.MaxValue);
+            var exportRoot = search.Length == 0 ? root : await Task.Run(() => root.CreateFilteredCopy(search));
             var result = await CsvExporter.ExportAsync(exportRoot, destination, IncludeParentLevels);
             StatusText = Strings.FormatExportSaved(
                 root.Name, search.Length == 0 ? null : search, result.Rows, result.LevelColumns, displayPath);
@@ -248,40 +301,170 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public void ExpandAll()
-    {
-        if (_disposed || _root is null)
-            return;
+    // Ebenen-Steuerung: Der Baum enthält immer alle Ebenen, einzelne Ordner lassen sich jederzeit
+    // auf- und zuklappen. Diese Befehle setzen alle Ordner einheitlich auf eine Ebene: alles bis
+    // dorthin wird geöffnet, tiefer (auch einzeln) aufgeklappte Ordner werden darauf zurückgesetzt.
 
-        _currentExpansionDepth = _maximumExpansionDepth;
-        ApplyFilter();
-    }
+    public void ExpandAll() => SetExpansionLevel(_maximumExpansionDepth);
 
-    public void CollapseAll()
-    {
-        if (_disposed || _root is null)
-            return;
-
-        _currentExpansionDepth = 0;
-        ApplyFilter();
-    }
+    public void CollapseAll() => SetExpansionLevel(0);
 
     public void ExpandOneLevel()
     {
-        if (!CanExpandOneLevel)
-            return;
-
-        _currentExpansionDepth++;
-        ApplyFilter();
+        if (CanExpandOneLevel)
+            SetExpansionLevel(_currentExpansionDepth + 1);
     }
 
     public void CollapseOneLevel()
     {
-        if (!CanCollapseOneLevel)
+        if (CanCollapseOneLevel)
+            SetExpansionLevel(_currentExpansionDepth - 1);
+    }
+
+    private void SetExpansionLevel(int level)
+    {
+        var root = _root;
+        if (!CanInteract || root is null)
             return;
 
-        _currentExpansionDepth--;
-        ApplyFilter();
+        _currentExpansionDepth = Math.Clamp(level, 0, _maximumExpansionDepth);
+        SetExpandedFlags(root, _currentExpansionDepth);
+        RefreshRows();
+        NotifyButtonStates();
+    }
+
+    /// <summary>Alle Ordner mit Tiefe kleiner als die Ebene auf, alle anderen zu.</summary>
+    private static void SetExpandedFlags(FolderNode root, int level)
+    {
+        var stack = new Stack<FolderNode>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            node.IsExpanded = node.Depth < level;
+            foreach (var child in node.Children)
+            {
+                if (child.IsFolder)
+                    stack.Push(child);
+            }
+        }
+    }
+
+    /// <summary>Einen einzelnen Ordner auf- oder zuklappen (Pfeil vor dem Namen, Doppelklick).</summary>
+    public void Toggle(FolderNode node)
+    {
+        if (!CanInteract || !node.HasChildren)
+            return;
+
+        var index = _rows.IndexOf(node);
+        if (index < 0)
+            return;
+
+        if (node.IsExpanded)
+        {
+            node.IsExpanded = false;
+            var end = index + 1;
+            while (end < _rows.Count && _rows[end].Depth > node.Depth)
+                end++;
+            _rows.RemoveRange(index + 1, end - index - 1);
+        }
+        else
+        {
+            node.IsExpanded = true;
+            var rows = new List<FolderNode>();
+            AppendVisible(node, rows, _filterActive, includeSelf: false);
+            _rows.InsertRange(index + 1, rows);
+        }
+    }
+
+    public void ToggleSelected()
+    {
+        if (_selectedNode is { } node)
+            Toggle(node);
+    }
+
+    /// <summary>Sichtbare Zeilen eines Teilbaums in Anzeigereihenfolge (aufgeklappte Ordner, ggf. gefiltert).</summary>
+    private static void AppendVisible(FolderNode start, List<FolderNode> rows, bool filtered, bool includeSelf)
+    {
+        var stack = new Stack<FolderNode>();
+        if (includeSelf)
+        {
+            if (filtered && !start.MatchesFilter)
+                return;
+            stack.Push(start);
+        }
+        else
+        {
+            PushChildren(start);
+        }
+
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            rows.Add(node);
+            if (node.IsFolder && node.IsExpanded)
+                PushChildren(node);
+        }
+
+        void PushChildren(FolderNode node)
+        {
+            var children = node.Children;
+            for (var index = children.Count - 1; index >= 0; index--)
+            {
+                if (!filtered || children[index].MatchesFilter)
+                    stack.Push(children[index]);
+            }
+        }
+    }
+
+    /// <summary>Berechnet die sichtbaren Zeilen neu und zeigt sie an.</summary>
+    private void RefreshRows()
+    {
+        var rows = new List<FolderNode>();
+        if (_root is { } root)
+            AppendVisible(root, rows, _filterActive, includeSelf: true);
+        SetRows(rows);
+    }
+
+    private void SetRows(List<FolderNode> rows)
+    {
+        _suppressSelection = true;
+        try
+        {
+            _rows = new RowList(rows);
+            Source.Items = _rows;
+            var index = _selectedNode is null ? -1 : _rows.IndexOf(_selectedNode);
+            if (index >= 0 && Source.RowSelection is { } selection)
+                selection.SelectedIndex = index;
+            else
+                _selectedNode = null;
+        }
+        finally
+        {
+            _suppressSelection = false;
+        }
+
+        NotifyExportScope();
+    }
+
+    /// <summary>Während des Scans: Stammordner und oberste Ebene mit den bisher gezählten Größen.</summary>
+    private void ShowLiveRows()
+    {
+        var root = Volatile.Read(ref _liveRoot);
+        if (!IsScanning || root is null)
+            return;
+
+        var children = root.Children.ToArray();
+        Array.Sort(children, static (a, b) => b.SizeBytes.CompareTo(a.SizeBytes));
+        var rootSize = Math.Max(1d, root.SizeBytes);
+        root.Percent = 100;
+        root.IsExpanded = true;
+        foreach (var child in children)
+            child.Percent = child.IsOnlineOnly ? 0 : child.SizeBytes * 100d / rootSize;
+
+        var rows = new List<FolderNode>(children.Length + 1) { root };
+        rows.AddRange(children);
+        SetRows(rows);
     }
 
     public void Dispose()
@@ -294,75 +477,94 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _source.Dispose();
     }
 
-    private void ApplyFilter() => _ = RebuildViewAsync(sortRequested: false);
-
     /// <summary>Suche erst anwenden, wenn 300 ms nicht mehr getippt wurde.</summary>
     private async Task ApplyFilterDebouncedAsync()
     {
         var version = ++_searchVersion;
         await Task.Delay(300);
-        if (version == _searchVersion && !_disposed)
-            await RebuildViewAsync(sortRequested: false);
+        while (_isWorking && version == _searchVersion)
+            await Task.Delay(30);
+        if (version == _searchVersion && !_disposed && !IsScanning)
+            await ApplySearchAsync();
     }
 
     /// <summary>
-    /// Baut die Anzeige neu auf. Kopieren, Filtern und Sortieren der (evtl. Millionen) Knoten
-    /// laufen im Hintergrund; im UI-Thread wird nur noch die fertige Quelle gesetzt.
-    /// Wird währenddessen erneut neu aufgebaut, gewinnt der jüngste Aufruf.
+    /// Markiert im Hintergrund, welche Einträge zur Suche passen (selbst oder über Unterordner),
+    /// und zeigt die Treffer aufgeklappt. Ohne Suchtext gilt wieder die eingestellte Ebene.
     /// </summary>
-    private async Task RebuildViewAsync(bool sortRequested)
+    private async Task ApplySearchAsync()
     {
-        if (_disposed)
-            return;
-
-        var version = ++_rebuildVersion;
         var root = _root;
-        if (root is null)
-        {
-            Source = CreateSource(Array.Empty<FolderNode>());
-            NotifyButtonStates();
+        if (_disposed || root is null || _isWorking)
             return;
-        }
 
         var search = SearchText.Trim();
-        var depth = _currentExpansionDepth;
-        var sortColumn = _sortColumnIndex;
-        var sortDirection = _sortDirection;
-        SetRebuilding(true);
-        if (sortRequested)
-            SetSortInfo(Strings.FormatSorting(ColumnName(sortColumn)));
-
+        SetWorking(true);
         try
         {
-            var sw = Stopwatch.StartNew();
-            var displayedRoot = await Task.Run(() => BuildDisplayTree(root, search, depth, sortColumn, sortDirection));
-            if (version != _rebuildVersion || _disposed)
-                return; // inzwischen überholt
-
-            Source = displayedRoot is null
-                ? CreateSource(Array.Empty<FolderNode>())
-                : CreateSource(new[] { displayedRoot });
-
-            Source.ExpandAll();
-            if (sortColumn is { } index && index < Source.Columns.Count)
-                Source.Columns[index].SortDirection = sortDirection;
-
-            AttachSelection(displayedRoot);
-
-            if (sortRequested)
-                SetSortInfo(Strings.FormatSorted(
-                    ColumnName(sortColumn), sortDirection == ListSortDirection.Ascending, sw.Elapsed.TotalSeconds));
+            _progress.Start(Strings.PhaseFilter, root.NodeCount);
+            var progress = _progress;
+            await Task.Run(() => MarkFilter(root, search, progress));
+            _filterActive = search.Length > 0;
+            SetExpandedFlags(root, _filterActive ? int.MaxValue : _currentExpansionDepth);
+            RefreshRows();
         }
         catch (Exception ex)
         {
-            ErrorLog.Write("Anzeige aufbauen", ex);
+            ErrorLog.Write("Suche", ex);
             ReportError(ex.Message);
         }
         finally
         {
-            if (version == _rebuildVersion)
-                SetRebuilding(false);
-            NotifyButtonStates();
+            SetWorking(false);
+        }
+    }
+
+    private static bool MarkFilter(FolderNode node, string search, ProgressCounter progress)
+    {
+        var any = false;
+        foreach (var child in node.Children)
+            any |= MarkFilter(child, search, progress);
+
+        if (node.IsFolder)
+            progress.Step(1 + node.Children.Count(c => !c.IsFolder));
+        node.MatchesFilter = search.Length == 0 || any || node.Name.Contains(search, StringComparison.OrdinalIgnoreCase);
+        return node.MatchesFilter;
+    }
+
+    /// <summary>
+    /// Sortiert die Kinder aller Ordner im Hintergrund (parallel, direkt in den Daten – keine Kopie)
+    /// und baut danach nur die sichtbare Zeilenliste neu. Aufgeklappte Ordner bleiben aufgeklappt.
+    /// </summary>
+    private async Task SortAsync(SortColumn key, ListSortDirection direction)
+    {
+        var root = _root;
+        if (root is null)
+            return;
+
+        SetWorking(true);
+        SetSortInfo(Strings.FormatSorting(ColumnName(key)));
+        try
+        {
+            var sw = Stopwatch.StartNew();
+            _progress.Start(Strings.PhaseSort, root.NodeCount);
+            var progress = _progress;
+            await Task.Run(() => TreeSorter.Sort(root, key, direction, progress));
+            if (_disposed)
+                return;
+
+            RefreshRows();
+            SetSortInfo(Strings.FormatSorted(
+                ColumnName(key), direction == ListSortDirection.Ascending, sw.Elapsed.TotalSeconds));
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Sortieren", ex);
+            ReportError(ex.Message);
+        }
+        finally
+        {
+            SetWorking(false);
         }
     }
 
@@ -372,10 +574,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(StatusDisplay));
     }
 
-    private void SetRebuilding(bool value)
+    private void SetWorking(bool value)
     {
-        _isRebuilding = value;
-        OnPropertyChanged(nameof(IsBusy));
+        if (_isWorking == value)
+            return;
+
+        _isWorking = value;
+        if (value)
+        {
+            _progress.Start(string.Empty, 1);
+            ProgressPercent = 0;
+            ProgressText = string.Empty;
+            _progressTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) => UpdateProgressFromCounter());
+            _progressTimer.Start();
+        }
+        else
+        {
+            _progressTimer?.Stop();
+            ProgressText = string.Empty;
+        }
+
+        NotifyButtonStates();
+    }
+
+    private void UpdateProgressFromCounter()
+    {
+        var phase = _progress.Phase;
+        if (phase.Length == 0)
+            return;
+
+        var fraction = _progress.Fraction;
+        ProgressPercent = fraction * 100;
+        ProgressText = Strings.FormatProgress(phase, fraction);
     }
 
     /// <summary>Klick auf eine Spaltenüberschrift (siehe <see cref="SortableTreeSource"/>).</summary>
@@ -390,171 +620,50 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 break;
             }
         }
-        if (index < 0 || _root is null)
+        if (index < 0 || index >= Source.ColumnKeys.Count || !CanInteract)
             return false;
+        var key = Source.ColumnKeys[index];
 
         // Richtung selbst bestimmen (die vom Grid vorgeschlagene passt nach dem Neuaufbau nicht
         // immer): erneuter Klick auf dieselbe Spalte dreht um; eine neue Spalte beginnt bei
         // Zahlen absteigend (größte zuerst), bei Name/Typ aufsteigend (A–Z).
-        direction = index == _sortColumnIndex
+        direction = key == _sortKey
             ? (_sortDirection == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending)
-            : (index >= 2 ? ListSortDirection.Descending : ListSortDirection.Ascending);
+            : (TreeSorter.IsNumeric(key) ? ListSortDirection.Descending : ListSortDirection.Ascending);
 
-        _sortColumnIndex = index;
+        _sortKey = key;
         _sortDirection = direction;
+        foreach (var other in Source.Columns)
+            other.SortDirection = null;
         column.SortDirection = direction; // Pfeil sofort zeigen
-        _ = RebuildViewAsync(sortRequested: true);
+        _ = SortAsync(key, direction);
         return true;
     }
 
-    private static string ColumnName(int? index) => index switch
+    private string ColumnName(SortColumn? key) => key switch
     {
-        0 => Strings.ColumnName,
-        1 => Strings.ColumnType,
-        2 => Strings.ColumnSize,
-        3 => Strings.ColumnFiles,
-        4 => Strings.ColumnFolders,
-        5 => Strings.ColumnShare,
+        SortColumn.Name => Strings.ColumnName,
+        SortColumn.Type => Strings.ColumnType,
+        SortColumn.Local => ShowsCloudColumns ? Strings.ColumnLocal : Strings.ColumnSize,
+        SortColumn.Online => Strings.ColumnOnline,
+        SortColumn.Total => Strings.ColumnTotal,
+        SortColumn.Files => Strings.ColumnFiles,
+        SortColumn.Folders => Strings.ColumnFolders,
+        SortColumn.Share => Strings.ColumnShare,
         _ => Strings.ColumnDefault
     };
 
-    /// <summary>Läuft im Hintergrund: Kopie für die Anzeige erstellen, filtern, sortieren.</summary>
-    private static FolderNode? BuildDisplayTree(
-        FolderNode root,
-        string search,
-        int depth,
-        int? sortColumn,
-        ListSortDirection sortDirection)
-    {
-        FolderNode? displayedRoot;
-        if (search.Length == 0)
-        {
-            displayedRoot = root.CreateDepthLimitedCopy(depth);
-        }
-        else
-        {
-            displayedRoot = root.CreateFilteredCopy(search, depth);
-            var rootMatches = root.Name.Contains(search, StringComparison.OrdinalIgnoreCase);
-            if (!rootMatches && displayedRoot.Children.Count == 0)
-                return null;
-        }
-
-        if (sortColumn is { } column)
-            TreeSorter.Sort(displayedRoot, column, sortDirection);
-
-        return displayedRoot;
-    }
-
-    /// <summary>
-    /// Merkt sich den im Baum ausgewählten Eintrag (als Pfad, weil die Anzeige mit Kopien der
-    /// Knoten arbeitet) und stellt die Auswahl nach einem Neuaufbau des Baums wieder her.
-    /// </summary>
-    private void AttachSelection(FolderNode? displayedRoot)
-    {
-        var selection = Source.RowSelection;
-        if (selection is null)
-            return;
-
-        if (displayedRoot is not null && _selectedPath is not null &&
-            TryGetIndexPath(displayedRoot, _selectedPath, out var indexPath))
-        {
-            selection.SelectedIndex = indexPath;
-        }
-        else
-        {
-            _selectedPath = null;
-        }
-
-        selection.SelectionChanged += (_, _) =>
-        {
-            _selectedPath = selection.SelectedItem?.FullPath;
-            NotifyExportScope();
-        };
-    }
-
-    private static bool TryGetIndexPath(FolderNode displayedRoot, string path, out IndexPath indexPath)
-    {
-        var indices = new List<int> { 0 };
-        var node = displayedRoot;
-
-        while (!PathEquals(node.FullPath, path))
-        {
-            var next = -1;
-            for (var index = 0; index < node.Children.Count; index++)
-            {
-                if (IsSameOrInside(path, node.Children[index].FullPath))
-                {
-                    next = index;
-                    break;
-                }
-            }
-
-            if (next < 0)
-            {
-                indexPath = default;
-                return false;
-            }
-
-            indices.Add(next);
-            node = node.Children[next];
-        }
-
-        indexPath = new IndexPath(indices.ToArray());
-        return true;
-    }
+    /// <summary>Spalten "Nur online" und "Gesamt" nur, wenn der Scan Online-Dateien gefunden hat.</summary>
+    private bool ShowsCloudColumns => _root is { OnlineOnlyFileCount: > 0 };
 
     /// <summary>Ordner, ab dem exportiert wird: Auswahl im Baum (Datei → ihr Ordner) oder der Scan.</summary>
     private FolderNode? GetExportNode()
     {
         var root = _root;
-        if (root is null || _selectedPath is null)
+        if (root is null || _selectedNode is null)
             return root;
 
-        var node = FindNode(root, _selectedPath);
-        if (node is { IsFolder: false })
-            node = FindNode(root, Path.GetDirectoryName(node.FullPath) ?? root.FullPath);
-
-        return node ?? root;
-    }
-
-    private static FolderNode? FindNode(FolderNode root, string path)
-    {
-        var node = root;
-        while (!PathEquals(node.FullPath, path))
-        {
-            FolderNode? next = null;
-            foreach (var child in node.Children)
-            {
-                if (IsSameOrInside(path, child.FullPath))
-                {
-                    next = child;
-                    break;
-                }
-            }
-
-            if (next is null)
-                return null;
-            node = next;
-        }
-
-        return node;
-    }
-
-    private static bool PathEquals(string left, string right) =>
-        string.Equals(
-            Path.TrimEndingDirectorySeparator(left),
-            Path.TrimEndingDirectorySeparator(right),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-
-    /// <summary>true, wenn <paramref name="path"/> gleich <paramref name="candidate"/> ist oder darin liegt.</summary>
-    private static bool IsSameOrInside(string path, string candidate)
-    {
-        if (PathEquals(path, candidate))
-            return true;
-
-        var prefix = Path.TrimEndingDirectorySeparator(candidate) + Path.DirectorySeparatorChar;
-        return path.StartsWith(prefix,
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        return _selectedNode.IsFolder ? _selectedNode : _selectedNode.Parent ?? root;
     }
 
     private void NotifyExportScope()
@@ -563,65 +672,82 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(ExportScopePath));
     }
 
-    private SortableTreeSource CreateSource(IEnumerable<FolderNode> roots)
+    private SortableTreeSource CreateSource()
     {
-        var sizeOptions = CreateLongOptions(node => node.SizeBytes);
-        var fileOptions = CreateLongOptions(node => node.FileCount);
-        var folderOptions = CreateLongOptions(node => node.FolderCount);
-        var percentOptions = CreateDoubleOptions(node => node.Percent);
-
-        return new SortableTreeSource(roots, OnSortRequested)
+        var cloud = ShowsCloudColumns;
+        var source = new SortableTreeSource(OnSortRequested);
+        if (source.RowSelection is { } selection)
         {
-            Columns =
+            selection.SelectionChanged += (_, _) =>
             {
-                new HierarchicalExpanderColumn<FolderNode>(
-                    new TemplateColumn<FolderNode>(
-                        Strings.ColumnName,
-                        CreateNameCellTemplate(),
-                        null,
-                        new GridLength(1, GridUnitType.Star),
-                        new TemplateColumnOptions<FolderNode>
-                        {
-                            IsTextSearchEnabled = true,
-                            TextSearchValueSelector = node => node.Name,
-                            CompareAscending = (left, right) => CompareNames(left, right),
-                            CompareDescending = (left, right) => CompareNames(right, left)
-                        }),
-                    node => node.Children),
-                new TextColumn<FolderNode, string>(
-                    Strings.ColumnType,
-                    node => node.TypeText,
-                    new GridLength(130),
-                    new TextColumnOptions<FolderNode>
-                    {
-                        CompareAscending = (left, right) => string.Compare(left?.TypeText, right?.TypeText, StringComparison.CurrentCultureIgnoreCase),
-                        CompareDescending = (left, right) => string.Compare(right?.TypeText, left?.TypeText, StringComparison.CurrentCultureIgnoreCase)
-                    }),
-                new TextColumn<FolderNode, string>(
-                    Strings.ColumnSize,
-                    node => node.SizeText,
-                    new GridLength(145),
-                    sizeOptions),
-                new TextColumn<FolderNode, string>(
-                    Strings.ColumnFiles,
-                    node => node.FileCountText,
-                    new GridLength(110),
-                    fileOptions),
-                new TextColumn<FolderNode, string>(
-                    Strings.ColumnFolders,
-                    node => node.FolderCountText,
-                    new GridLength(100),
-                    folderOptions),
-                new TextColumn<FolderNode, string>(
-                    Strings.ColumnShare,
-                    node => node.PercentText,
-                    new GridLength(90),
-                    percentOptions)
-            }
-        };
+                if (_suppressSelection)
+                    return;
+                _selectedNode = selection.SelectedItem;
+                NotifyExportScope();
+            };
+        }
+        var keys = new List<SortColumn>();
+
+        void Add(SortColumn key, IColumn<FolderNode> column)
+        {
+            keys.Add(key);
+            source.Columns.Add(column);
+        }
+
+        Add(SortColumn.Name,
+            new TemplateColumn<FolderNode>(
+                Strings.ColumnName,
+                CreateNameCellTemplate(),
+                null,
+                new GridLength(1, GridUnitType.Star),
+                new TemplateColumnOptions<FolderNode>
+                {
+                    IsTextSearchEnabled = true,
+                    TextSearchValueSelector = node => node.Name,
+                    CompareAscending = (left, right) => CompareNames(left, right),
+                    CompareDescending = (left, right) => CompareNames(right, left)
+                }));
+        Add(SortColumn.Type, new TextColumn<FolderNode, string>(
+            Strings.ColumnType,
+            node => node.TypeText,
+            new GridLength(cloud ? 150 : 130),
+            new TextColumnOptions<FolderNode>
+            {
+                CompareAscending = (left, right) => string.Compare(left?.TypeText, right?.TypeText, StringComparison.CurrentCultureIgnoreCase),
+                CompareDescending = (left, right) => string.Compare(right?.TypeText, left?.TypeText, StringComparison.CurrentCultureIgnoreCase)
+            }));
+
+        if (cloud)
+        {
+            // Drei Größen, sobald es Dateien gibt, die nur online liegen
+            Add(SortColumn.Local, new TextColumn<FolderNode, string>(Strings.ColumnLocal, node => node.LocalText,
+                new GridLength(125), CreateLongOptions(node => node.LocalBytes)));
+            Add(SortColumn.Online, new TextColumn<FolderNode, string>(Strings.ColumnOnline, node => node.OnlineText,
+                new GridLength(115), CreateLongOptions(node => node.OnlineBytes)));
+            Add(SortColumn.Total, new TextColumn<FolderNode, string>(Strings.ColumnTotal, node => node.TotalText,
+                new GridLength(115), CreateLongOptions(node => node.TotalBytes)));
+        }
+        else
+        {
+            Add(SortColumn.Local, new TextColumn<FolderNode, string>(Strings.ColumnSize, node => node.SizeText,
+                new GridLength(145), CreateLongOptions(node => node.LocalBytes)));
+        }
+
+        Add(SortColumn.Files, new TextColumn<FolderNode, string>(Strings.ColumnFiles, node => node.FileCountText,
+            new GridLength(cloud ? 95 : 110), CreateLongOptions(node => node.FileCount)));
+        Add(SortColumn.Folders, new TextColumn<FolderNode, string>(Strings.ColumnFolders, node => node.FolderCountText,
+            new GridLength(cloud ? 85 : 100), CreateLongOptions(node => node.FolderCount)));
+        Add(SortColumn.Share, new TextColumn<FolderNode, string>(Strings.ColumnShare, node => node.PercentText,
+            new GridLength(85), CreateDoubleOptions(node => node.Percent)));
+
+        source.ColumnKeys = keys;
+        return source;
     }
 
-    private static IDataTemplate CreateNameCellTemplate() =>
+    private static readonly IValueConverter ChevronConverter =
+        new FuncValueConverter<bool, MaterialIconKind>(expanded => expanded ? MaterialIconKind.ChevronDown : MaterialIconKind.ChevronRight);
+
+    private IDataTemplate CreateNameCellTemplate() =>
         new FuncDataTemplate<FolderNode>((node, _) =>
         {
             if (node is null)
@@ -635,7 +761,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 VerticalAlignment = VerticalAlignment.Center,
                 Foreground = node.IsFolder
                     ? Brush.Parse("#E5A50A")
-                    : Brush.Parse("#64748B")
+                    : node.IsOnlineOnly ? Brush.Parse("#5B8DEF") : Brush.Parse("#64748B")
             };
 
             var name = new TextBlock
@@ -644,13 +770,36 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
+            if (node.IsOnlineOnly || node.IsOnlineOnlyFolder)
+            {
+                // nicht auf der Platte: blasser und kursiv
+                name.FontStyle = FontStyle.Italic;
+                name.Opacity = 0.7;
+            }
+
+            // Einrückung nach Tiefe und eigener Aufklapp-Pfeil (die Zeilenliste ist flach)
+            var toggle = new Border { Width = 22, Height = 24, Background = Brushes.Transparent };
+            if (node.HasChildren)
+            {
+                var chevron = new MaterialIcon { Width = 16, Height = 16, Foreground = Brush.Parse("#8A93A0") };
+                chevron.Bind(MaterialIcon.KindProperty, new Binding(nameof(FolderNode.IsExpanded)) { Source = node, Converter = ChevronConverter });
+                toggle.Child = chevron;
+                toggle.Cursor = new Cursor(StandardCursorType.Hand);
+                toggle.PointerPressed += (_, e) =>
+                {
+                    e.Handled = true;
+                    Toggle(node);
+                };
+            }
 
             var panel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                Spacing = 8,
-                VerticalAlignment = VerticalAlignment.Center
+                Spacing = 6,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(node.Depth * 18, 0, 0, 0)
             };
+            panel.Children.Add(toggle);
             panel.Children.Add(icon);
             panel.Children.Add(name);
             return panel;
@@ -701,6 +850,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(CanStart));
         OnPropertyChanged(nameof(CanStop));
         OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(IsProgressIndeterminate));
         OnPropertyChanged(nameof(CanExport));
         NotifyExportScope();
         OnPropertyChanged(nameof(CanExpandOneLevel));

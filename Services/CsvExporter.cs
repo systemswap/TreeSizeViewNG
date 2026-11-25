@@ -49,15 +49,18 @@ public static class CsvExporter
         var rootChain = includeParentLevels || absoluteChain.Count == 0
             ? absoluteChain
             : [absoluteChain[^1]];
-        var rootSize = Math.Max(1d, root.SizeBytes);
+        var rootSize = Math.Max(1d, root.LocalBytes);
         var levelColumns = rootChain.Count + GetMaxFolderDepth(root);
 
         // UTF-8 mit BOM, damit Excel Umlaute korrekt erkennt.
         using var writer = new StreamWriter(destination, new UTF8Encoding(true), 1 << 16);
         var row = new List<string>(10 + levelColumns);
 
-        row.AddRange([Strings.CsvType, Strings.CsvSizeBytes, Strings.CsvSizeMb, Strings.CsvShare, Strings.CsvFiles,
-                      Strings.CsvSubfolders, Strings.CsvDepth, Strings.CsvExtension, Strings.CsvName]);
+        // Drei Größen: auf der Platte, nur online (Cloud-Platzhalter), gesamt. MB und Anteil beziehen
+        // sich auf die Platte.
+        row.AddRange([Strings.CsvType, Strings.CsvSizeBytes, Strings.CsvOnlineBytes, Strings.CsvTotalBytes,
+                      Strings.CsvSizeMb, Strings.CsvShare, Strings.CsvFiles, Strings.CsvSubfolders, Strings.CsvDepth,
+                      Strings.CsvExtension, Strings.CsvName]);
         for (var level = 1; level <= levelColumns; level++)
             row.Add(Strings.FormatCsvLevel(level));
         row.Add(Strings.CsvFullPath);
@@ -65,6 +68,9 @@ public static class CsvExporter
 
         long rows = 0;
         var folderChain = new List<string>(rootChain);
+        // Pfad des aktuellen Ordners mitführen (Knoten speichern ihren Pfad nicht einzeln)
+        var pathStack = new Stack<string>();
+        pathStack.Push(root.FullPath);
         var stack = new Stack<(FolderNode Node, int Depth, bool Leave)>();
         stack.Push((root, 0, false));
 
@@ -76,17 +82,23 @@ public static class CsvExporter
             if (leave)
             {
                 folderChain.RemoveAt(folderChain.Count - 1);
+                pathStack.Pop();
                 continue;
             }
 
             if (node.IsFolder && depth > 0)
+            {
                 folderChain.Add(node.Name);
+                pathStack.Push(Path.Combine(pathStack.Peek(), node.Name));
+            }
 
             row.Clear();
             row.Add(node.IsFolder ? Strings.TypeFolder : Strings.TypeFile);
-            row.Add(node.SizeBytes.ToString(CultureInfo.InvariantCulture));
-            row.Add((node.SizeBytes / 1024d / 1024d).ToString("0.##", culture));
-            row.Add((node.SizeBytes * 100d / rootSize).ToString("0.###", culture));
+            row.Add(node.LocalBytes.ToString(CultureInfo.InvariantCulture));
+            row.Add(node.OnlineBytes.ToString(CultureInfo.InvariantCulture));
+            row.Add(node.TotalBytes.ToString(CultureInfo.InvariantCulture));
+            row.Add((node.LocalBytes / 1024d / 1024d).ToString("0.##", culture));
+            row.Add(node.IsOnlineOnly ? string.Empty : (node.LocalBytes * 100d / rootSize).ToString("0.###", culture));
             row.Add(node.FileCount.ToString(CultureInfo.InvariantCulture));
             row.Add(node.IsFolder ? node.FolderCount.ToString(CultureInfo.InvariantCulture) : string.Empty);
             var absoluteDepth = node.IsFolder ? folderChain.Count : folderChain.Count + 1;
@@ -95,7 +107,7 @@ public static class CsvExporter
             row.Add(node.Name);
             for (var level = 0; level < levelColumns; level++)
                 row.Add(level < folderChain.Count ? folderChain[level] : string.Empty);
-            row.Add(node.FullPath);
+            row.Add(node.IsFolder ? pathStack.Peek() : Path.Combine(pathStack.Peek(), node.Name));
 
             WriteRow(writer, row, separator);
             rows++;

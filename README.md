@@ -24,8 +24,9 @@
 
 ## Warum TreeSizeViewNG
 
-- **Schnell, auch bei großen Datenmengen:** Der Scan läuft im Hintergrund, die Oberfläche bleibt bedienbar. Sortieren nach Größe
-  bleibt selbst bei zwei Millionen Dateien flüssig – sortiert wird im Hintergrund, nicht im Fenster.
+- **Schnell, auch bei großen Datenmengen:** Schon während des Scans erscheinen die obersten Ordner mit wachsenden Größen.
+  Bei zwei Millionen Dateien dauert Sortieren rund eine halbe Sekunde (parallel auf allen CPU-Kernen), Auf- und Zuklappen
+  ganzer Ebenen Bruchteile einer Sekunde.
 - **Auf einen Blick:** Ordner und Dateien in einem Baum, mit Größe, Anzahl Dateien und Ordner, Anteil am Ganzen und einem eigenen
   Symbol für jeden Dateityp. Ebene für Ebene auf- und zuklappen.
 - **Auswerten statt nur anschauen:** CSV-Export für Excel mit Größen als echten Zahlen und jeder Ordnerebene in einer eigenen
@@ -49,10 +50,14 @@
 - Scan eines Ordners oder ganzen Laufwerks, jederzeit abbrechbar
 - Baum mit Ordnern und Dateien: Größe, Anzahl Dateien/Ordner, Anteil in %, Symbole für gängige Dateitypen
   (Dokumente, Office, Bilder, Audio, Video, Archive, Abbilder, Programme, Quellcode, Datenbanken, Schriften …)
-- Ebenenweise auf- und zuklappen (− / +) oder alles auf einmal
+- Einzelne Ordner jederzeit per Pfeil oder Doppelklick auf- und zuklappen; **− / +** über dem Baum setzt alle Ordner einheitlich eine Ebene
+  höher bzw. tiefer (auch einzeln weiter aufgeklappte werden auf diese Ebene gebracht), dazu alles auf einmal auf- oder zuklappen
 - Sortieren per Klick auf die Spaltenüberschrift: Zahlenspalten zuerst absteigend (größte zuerst), Namen in natürlicher
   Reihenfolge („Datei2“ vor „Datei10“), erneuter Klick dreht die Reihenfolge um
 - Suche nach Ordner- und Dateinamen
+- **Cloud-Dateien getrennt:** Dateien, die nur online liegen (z. B. OneDrive „Dateien bei Bedarf“), werden mit Wolkensymbol
+  angezeigt und zählen nicht zur belegten Größe. Findet der Scan solche Dateien, zeigt der Baum drei Größen:
+  „Auf der Platte“, „Nur online“ und „Gesamt“. Dateien in Sync-Ordnern, die lokal vorliegen, zählen normal mit.
 - Mindestgröße für berücksichtigte Dateien
 - **CSV-Export für Excel** (unten rechts), siehe unten
 - **Deutsch und Englisch:** Ist das Betriebssystem auf Deutsch eingestellt, ist die Oberfläche deutsch, sonst englisch.
@@ -71,8 +76,8 @@ Die Spaltenüberschriften sind in der Sprache der Oberfläche (englisch z. B. `T
 | Spalte | Inhalt |
 |---|---|
 | Typ | `Ordner` oder `Datei` |
-| Größe (Bytes) | reine Zahl – zum Summieren, Sortieren und für Pivot-Tabellen |
-| Größe (MB), Anteil (%) | Anteil bezogen auf den exportierten Ordner (= 100 %) |
+| Auf der Platte (Bytes), Nur online (Bytes), Gesamt (Bytes) | reine Zahlen – zum Summieren, Sortieren und für Pivot-Tabellen |
+| Auf der Platte (MB), Anteil (%) | Anteil bezogen auf den exportierten Ordner (= 100 %), jeweils auf der Platte |
 | Dateien, Unterordner, Tiefe, Erweiterung, Name | |
 | Ebene 1 … N | jede Ordnerebene in einer eigenen Spalte |
 | Vollständiger Pfad | |
@@ -98,6 +103,12 @@ Die Pakete entstehen automatisch bei jedem Push auf `main`, der das Programm än
 Änderungen an Startseite und Dokumentation erzeugen kein Release). Version = Haupt-/Nebenversion aus `<Version>` im csproj plus
 laufende Nummer, die an das letzte Release anschließt, z. B. `v1.0.0`, `v1.0.1` … Für einen Sprung auf `1.1.x` nur `<Version>` im
 csproj ändern.
+
+## Was nicht angezeigt werden kann
+
+Gezählt wird, was im Dateisystem liegt. Einträge, die nur eine Explorer-Erweiterung einblendet – etwa Dateien eines
+SOLIDWORKS-PDM-Tresors, die noch nicht lokal zwischengespeichert sind –, existieren auf der Platte nicht und erscheinen
+deshalb nicht (sie belegen dort auch keinen Platz).
 
 ## Entwickeln
 

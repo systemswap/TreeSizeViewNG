@@ -122,6 +122,10 @@ public partial class MainWindow : Window
     private void CollapseOneLevel_OnClick(object? sender, RoutedEventArgs e) =>
         ViewModel.CollapseOneLevel();
 
+    // Doppelklick auf eine Ordnerzeile klappt sie auf bzw. zu
+    private void Tree_OnDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e) =>
+        ViewModel.ToggleSelected();
+
     protected override void OnClosed(EventArgs e)
     {
         ViewModel.Dispose();

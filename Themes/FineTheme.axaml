@@ -318,6 +318,20 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
 
+  <!-- Fortschritt in der Akzentfarbe, gut sichtbar -->
+  <Style Selector="ProgressBar.busy">
+    <Setter Property="Foreground" Value="{DynamicResource Fine.Accent}" />
+    <Setter Property="Background" Value="{DynamicResource Fine.AccentTint}" />
+    <Setter Property="Minimum" Value="0" />
+    <Setter Property="Maximum" Value="100" />
+    <Setter Property="CornerRadius" Value="3" />
+  </Style>
+  <Style Selector="TextBlock.progress">
+    <Setter Property="Foreground" Value="{DynamicResource Fine.Accent}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontFeatures" Value="+tnum" />
+  </Style>
+
   <!-- Baum etwas feiner -->
   <Style Selector="TreeDataGrid">
     <Setter Property="FontSize" Value="12" />
