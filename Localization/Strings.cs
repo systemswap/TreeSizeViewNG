@@ -60,8 +60,8 @@ public static class Strings
     public static string ColumnName => T("Name", "Name");
     public static string ColumnType => T("Typ", "Type");
     public static string ColumnSize => T("Größe", "Size");
-    public static string ColumnLocal => T("Auf der Platte", "On disk");
-    public static string ColumnOnline => T("Nur online", "Online only");
+    public static string ColumnLocal => T("Lokal", "Local");
+    public static string ColumnOnline => T("In Cloud", "In cloud");
     public static string ColumnTotal => T("Gesamt", "Total");
     public static string ColumnFiles => T("Dateien", "Files");
     public static string ColumnFolders => T("Ordner", "Folders");
@@ -71,11 +71,11 @@ public static class Strings
     public static string TypeFolder => T("Ordner", "Folder");
     public static string TypeFile => T("Datei", "File");
     public static string FormatTypeFile(string extension) => T($"{extension}-Datei", $"{extension} file");
-    public static string FormatOnlineOnly(string type) => T($"{type} · nur online", $"{type} · online only");
-    public static string TypeFolderOnlineOnly => T("Ordner · nur online", "Folder · online only");
+    public static string FormatOnlineOnly(string type) => T($"{type} · in Cloud", $"{type} · in cloud");
+    public static string TypeFolderOnlineOnly => T("Ordner · in Cloud", "Folder · in cloud");
     public static string FormatOnlineOnlySummary(long files, string size) => T(
-        $" · zusätzlich {files:N0} Dateien nur online ({size}, nicht auf der Platte)",
-        $" · plus {files:N0} files online only ({size}, not on disk)");
+        $" · zusätzlich {files:N0} Dateien in der Cloud ({size}, nicht lokal)",
+        $" · plus {files:N0} files in the cloud ({size}, not local)");
 
     // ----- Fortschritt -----
     public static string PhaseFilter => T("Suchen", "Searching");
@@ -103,10 +103,10 @@ public static class Strings
 
     // CSV-Kopfzeile
     public static string CsvType => T("Typ", "Type");
-    public static string CsvSizeBytes => T("Auf der Platte (Bytes)", "On disk (bytes)");
-    public static string CsvOnlineBytes => T("Nur online (Bytes)", "Online only (bytes)");
+    public static string CsvSizeBytes => T("Lokal (Bytes)", "Local (bytes)");
+    public static string CsvOnlineBytes => T("In Cloud (Bytes)", "In cloud (bytes)");
     public static string CsvTotalBytes => T("Gesamt (Bytes)", "Total (bytes)");
-    public static string CsvSizeMb => T("Auf der Platte (MB)", "On disk (MB)");
+    public static string CsvSizeMb => T("Lokal (MB)", "Local (MB)");
     public static string CsvShare => T("Anteil (%)", "Share (%)");
     public static string CsvFiles => T("Dateien", "Files");
     public static string CsvSubfolders => T("Unterordner", "Subfolders");

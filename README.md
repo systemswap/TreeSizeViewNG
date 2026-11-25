@@ -59,7 +59,7 @@
 - Suche nach Ordner- und Dateinamen
 - **Cloud-Dateien getrennt:** Dateien, die nur online liegen (z. B. OneDrive „Dateien bei Bedarf“), werden mit Wolkensymbol
   angezeigt und zählen nicht zur belegten Größe. Findet der Scan solche Dateien, zeigt der Baum drei Größen:
-  „Auf der Platte“, „Nur online“ und „Gesamt“. Dateien in Sync-Ordnern, die lokal vorliegen, zählen normal mit.
+  „Lokal“, „In Cloud“ und „Gesamt“. Dateien in Sync-Ordnern, die lokal vorliegen, zählen normal mit.
 - Mindestgröße für berücksichtigte Dateien
 - **CSV-Export für Excel** (unten rechts), siehe unten
 - **Deutsch und Englisch:** Ist das Betriebssystem auf Deutsch eingestellt, ist die Oberfläche deutsch, sonst englisch.
@@ -78,8 +78,8 @@ Die Spaltenüberschriften sind in der Sprache der Oberfläche (englisch z. B. `T
 | Spalte | Inhalt |
 |---|---|
 | Typ | `Ordner` oder `Datei` |
-| Auf der Platte (Bytes), Nur online (Bytes), Gesamt (Bytes) | reine Zahlen – zum Summieren, Sortieren und für Pivot-Tabellen |
-| Auf der Platte (MB), Anteil (%) | Anteil bezogen auf den exportierten Ordner (= 100 %), jeweils auf der Platte |
+| Lokal (Bytes), In Cloud (Bytes), Gesamt (Bytes) | reine Zahlen – zum Summieren, Sortieren und für Pivot-Tabellen |
+| Lokal (MB), Anteil (%) | Anteil bezogen auf den exportierten Ordner (= 100 %), jeweils lokal |
 | Dateien, Unterordner, Tiefe, Erweiterung, Name | |
 | Ebene 1 … N | jede Ordnerebene in einer eigenen Spalte |
 | Vollständiger Pfad | |
