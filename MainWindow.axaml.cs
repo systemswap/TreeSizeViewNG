@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
+using Material.Icons;
 using TreeSizeViewNG.Localization;
 using TreeSizeViewNG.Services;
 using TreeSizeViewNG.ViewModels;
@@ -16,6 +18,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         // Versionsnummer in der Titelleiste (Haupt.Neben.Commit-Anzahl)
         Title = $"TreeSizeViewNG {typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}";
+        LoadTheme();
+        ActualThemeVariantChanged += (_, _) => UpdateThemeIcon();
+        UpdateThemeIcon();
         var viewModel = new MainWindowViewModel();
         DataContext = viewModel;
         // Gewählte Zeile nach Auf-/Zuklappen sichtbar halten (erst nach dem Layout der neuen Zeilen)
@@ -24,6 +29,55 @@ public partial class MainWindow : Window
                 () => CenterRow(index),
                 Avalonia.Threading.DispatcherPriority.Background);
     }
+
+    // ----- Hell/Dunkel -----
+    // Ohne eigene Wahl folgt das Design dem Betriebssystem. Die Wahl per Schalter wird gemerkt
+    // (%LOCALAPPDATA%\TreeSizeViewNG\design.txt bzw. ~/.local/share/TreeSizeViewNG/design.txt).
+
+    private static string ThemeFile => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TreeSizeViewNG", "design.txt");
+
+    private static void LoadTheme()
+    {
+        try
+        {
+            if (Avalonia.Application.Current is not { } app || !File.Exists(ThemeFile))
+                return;
+
+            app.RequestedThemeVariant = File.ReadAllText(ThemeFile).Trim() switch
+            {
+                "Dark" => ThemeVariant.Dark,
+                "Light" => ThemeVariant.Light,
+                _ => ThemeVariant.Default
+            };
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Design laden", ex);
+        }
+    }
+
+    private void ToggleTheme_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (Avalonia.Application.Current is not { } app)
+            return;
+
+        var dark = ActualThemeVariant != ThemeVariant.Dark;
+        app.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(ThemeFile)!);
+            File.WriteAllText(ThemeFile, dark ? "Dark" : "Light");
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Design speichern", ex);
+        }
+    }
+
+    /// <summary>Das Symbol zeigt, wohin der Klick wechselt: Mond im hellen, Sonne im dunklen Design.</summary>
+    private void UpdateThemeIcon() =>
+        ThemeIcon.Kind = ActualThemeVariant == ThemeVariant.Dark ? MaterialIconKind.WhiteBalanceSunny : MaterialIconKind.WeatherNight;
 
     /// <summary>Zeigt einen unerwarteten Fehler in der Statusleiste an (Details stehen im Log).</summary>
     public void ShowError(Exception exception) =>

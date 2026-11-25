@@ -54,6 +54,8 @@
   höher bzw. tiefer (auch einzeln weiter aufgeklappte werden auf diese Ebene gebracht), dazu alles auf einmal auf- oder zuklappen
 - Sortieren per Klick auf die Spaltenüberschrift: Zahlenspalten zuerst absteigend (größte zuerst), Namen in natürlicher
   Reihenfolge („Datei2“ vor „Datei10“), erneuter Klick dreht die Reihenfolge um
+- Helles und dunkles Design: folgt dem Betriebssystem, per Schalter oben rechts von Hand umschaltbar (die Wahl wird gemerkt)
+- Schon während des Scans sichtbar: oberste Ordner mit wachsenden Größen, Ordner lassen sich dabei bereits aufklappen
 - Suche nach Ordner- und Dateinamen
 - **Cloud-Dateien getrennt:** Dateien, die nur online liegen (z. B. OneDrive „Dateien bei Bedarf“), werden mit Wolkensymbol
   angezeigt und zählen nicht zur belegten Größe. Findet der Scan solche Dateien, zeigt der Baum drei Größen:

@@ -153,8 +153,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public bool CanExpandOneLevel => CanInteract && _currentExpansionDepth < _maximumExpansionDepth;
     public bool CanCollapseOneLevel => CanInteract && _currentExpansionDepth > 0;
 
-    /// <summary>Baum darf verändert werden (nicht während Scan, Sortieren oder Suchen).</summary>
-    private bool CanInteract => !_disposed && !IsScanning && !_isWorking && _root is not null;
+    /// <summary>
+    /// Baum darf verändert werden: nicht während Scan, Sortieren oder Suchen – und nicht während eines
+    /// Exports, denn der liest die Daten im Hintergrund, die z. B. das Sortieren umordnen würde.
+    /// </summary>
+    private bool CanInteract => !_disposed && !IsScanning && !_isWorking && !_isExporting && _root is not null;
     public string ExpansionDepthText => !HasLevels
         ? Strings.LevelNone
         : Strings.FormatLevel(_currentExpansionDepth, _maximumExpansionDepth);

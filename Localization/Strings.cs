@@ -29,6 +29,8 @@ public static class Strings
     // ----- Kopfzeile -----
     public static string AppSubtitle => T("Ordnergrößen schnell und übersichtlich analysieren", "Analyse folder sizes quickly and clearly");
 
+    public static string ThemeToggleTip => T("Zwischen hellem und dunklem Design wechseln", "Switch between light and dark theme");
+
     // ----- Eingaben -----
     public static string FolderToAnalyse => T("ZU ANALYSIERENDER ORDNER", "FOLDER TO ANALYSE");
     public static string ChooseFolder => T("Ordner auswählen", "Choose folder");
