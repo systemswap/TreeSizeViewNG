@@ -10,8 +10,8 @@ namespace TreeSizeViewNG.ViewModels;
 /// wie die Einrückungslinien in einem Code-Editor. Über die Zeilen hinweg ergeben sie durchgehende
 /// Linien, an denen man beim Scrollen eine Ebene verfolgen kann.
 ///
-/// Hervorgehoben wird die Linie der Ebene des gewählten Eintrags (die Linie, an der er und seine
-/// Geschwister hängen): überall etwas dicker, im Ordner des gewählten Eintrags zusätzlich farbig.
+/// Hervorgehoben wird die Linie der Ebene des gewählten Ordners (sie beginnt unter seinem Pfeil):
+/// bei allen Ordnern dieser Ebene etwas dicker, im gewählten Ordner selbst zusätzlich farbig.
 /// </summary>
 public sealed class IndentGuides : Control
 {
@@ -70,16 +70,18 @@ public sealed class IndentGuides : Control
         var top = -overdraw;
         var bottom = Bounds.Height + overdraw;
 
-        var selected = _selected;
-        var activeLevel = selected is null ? -1 : selected.Depth - 1;
+        // Hervorgehoben wird die Linie, die am gewählten Ordner beginnt (unter seinem Pfeil, durch seinen
+        // Inhalt). Bei einer gewählten Datei ist es die Linie ihres Ordners.
+        var owner = _selected is { IsFolder: false } file ? file.Parent : _selected;
+        var activeLevel = owner is null ? -1 : owner.Depth;
         var sameBlock = false;
         if (activeLevel >= 0 && activeLevel < depth)
         {
-            // Vorfahre dieser Zeile auf der hervorgehobenen Ebene = Ordner des gewählten Eintrags?
+            // Liegt diese Zeile im gewählten Ordner (ihr Vorfahre auf dieser Ebene ist er selbst)?
             var ancestor = _node;
             while (ancestor is not null && ancestor.Depth > activeLevel)
                 ancestor = ancestor.Parent;
-            sameBlock = ReferenceEquals(ancestor, selected!.Parent);
+            sameBlock = ReferenceEquals(ancestor, owner);
         }
 
         for (var level = 0; level < depth; level++)
