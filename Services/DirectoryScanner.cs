@@ -8,7 +8,8 @@ public sealed record ScanProgress(
     long Folders,
     long Bytes,
     long SkippedEntries,
-    string CurrentPath);
+    string CurrentPath,
+    int MaxDepth = 0);
 
 /// <summary>
 /// Scannt einen Ordner rekursiv (iterativ, ohne Rekursion im Aufrufstapel).
@@ -80,6 +81,7 @@ public sealed class DirectoryScanner
         stack.Push((root, path));
 
         long totalFiles = 0, totalFolders = 0, skipped = 0;
+        var maxDepth = 0;
         var lastReport = Environment.TickCount64;
 
         while (stack.Count > 0)
@@ -149,6 +151,8 @@ public sealed class DirectoryScanner
             }
 
             totalFolders += folders;
+            if (children.Count > 0 && childDepth > maxDepth)
+                maxDepth = childDepth;
             node.SetChildren(children);
 
             // Summen sofort die Elternkette hinauf (Live-Anzeige; kein zweiter Durchlauf am Ende nötig)
@@ -169,7 +173,7 @@ public sealed class DirectoryScanner
 
             if (Environment.TickCount64 - lastReport >= 150)
             {
-                progress?.Report(new ScanProgress(totalFiles, totalFolders, root.SizeBytes, skipped, directory));
+                progress?.Report(new ScanProgress(totalFiles, totalFolders, root.SizeBytes, skipped, directory, maxDepth));
                 lastReport = Environment.TickCount64;
             }
         }
@@ -178,7 +182,7 @@ public sealed class DirectoryScanner
         // Ordner zuerst, dann lokale Dateien, dann Online-Dateien, je nach Größe (parallel, siehe TreeSorter)
         TreeSorter.SortDefault(root);
 
-        progress?.Report(new ScanProgress(totalFiles, totalFolders, root.SizeBytes, skipped, path));
+        progress?.Report(new ScanProgress(totalFiles, totalFolders, root.SizeBytes, skipped, path, maxDepth));
         return root;
     }
 

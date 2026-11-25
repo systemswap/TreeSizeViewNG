@@ -155,13 +155,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>Baum darf verändert werden (nicht während Scan, Sortieren oder Suchen).</summary>
     private bool CanInteract => !_disposed && !IsScanning && !_isWorking && _root is not null;
-    public string ExpansionDepthText => _root is null
+    public string ExpansionDepthText => !HasLevels
         ? Strings.LevelNone
         : Strings.FormatLevel(_currentExpansionDepth, _maximumExpansionDepth);
 
     // Die beiden Zahlen in "Ebene 12 / 23" sind anklickbar
-    public string CurrentLevelText => _root is null ? "–" : _currentExpansionDepth.ToString();
-    public string MaximumLevelText => _root is null ? "–" : _maximumExpansionDepth.ToString();
+    /// <summary>Ebenen sind bekannt: nach dem Scan, und schon währenddessen (die Tiefe wächst mit).</summary>
+    private bool HasLevels => _root is not null || (IsScanning && _maximumExpansionDepth > 0);
+
+    public string CurrentLevelText => !HasLevels ? "–" : _currentExpansionDepth.ToString();
+    public string MaximumLevelText => !HasLevels ? "–" : _maximumExpansionDepth.ToString();
     public bool CanUseLevelButtons => CanInteract;
 
     /// <summary>Klick auf die aktuelle Ebene: alle Ordner wieder einheitlich auf diese Ebene setzen.</summary>
@@ -251,8 +254,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _liveTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(400), DispatcherPriority.Background, (_, _) => ShowLiveRows());
         _liveTimer.Start();
 
+        _maximumExpansionDepth = 0;
+        _currentExpansionDepth = 0;
         var progress = new Progress<ScanProgress>(p =>
         {
+            if (IsScanning && p.MaxDepth != _maximumExpansionDepth)
+            {
+                // Live-Anzeige zeigt die oberste Ebene; die tiefste gefundene Ebene wächst mit
+                _maximumExpansionDepth = p.MaxDepth;
+                _currentExpansionDepth = Math.Min(1, p.MaxDepth);
+                OnPropertyChanged(nameof(ExpansionDepthText));
+                OnPropertyChanged(nameof(CurrentLevelText));
+                OnPropertyChanged(nameof(MaximumLevelText));
+            }
+
             StatusText = Strings.FormatScanProgress(
                 p.Files, p.Folders, SizeFormatter.Format(p.Bytes), p.SkippedEntries, p.CurrentPath);
         });
@@ -498,6 +513,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _suppressSelection = false;
         }
 
+        IndentGuides.Selected = _selectedNode;
         NotifyExportScope();
     }
 
@@ -528,6 +544,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             _suppressSelection = false;
         }
+
+        IndentGuides.Selected = node;
 
         NotifyExportScope();
     }
@@ -768,6 +786,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 if (_suppressSelection)
                     return;
                 _selectedNode = selection.SelectedItem;
+                IndentGuides.Selected = _selectedNode;
                 NotifyExportScope();
             };
         }
@@ -881,13 +900,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 6,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(node.Depth * 18, 0, 0, 0)
+                VerticalAlignment = VerticalAlignment.Center
             };
             panel.Children.Add(toggle);
             panel.Children.Add(icon);
             panel.Children.Add(name);
-            return panel;
+
+            // Einrückung mit Führungslinien je Ebene davor
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Stretch };
+            row.Children.Add(new IndentGuides(node));
+            row.Children.Add(panel);
+            return row;
         });
 
     private static TextColumnOptions<FolderNode> CreateLongOptions(Func<FolderNode, long> selector) => new()

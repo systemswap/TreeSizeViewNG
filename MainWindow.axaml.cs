@@ -19,7 +19,7 @@ public partial class MainWindow : Window
         // Gewählte Zeile nach Auf-/Zuklappen sichtbar halten (erst nach dem Layout der neuen Zeilen)
         viewModel.ScrollToRowRequested += index =>
             Avalonia.Threading.Dispatcher.UIThread.Post(
-                () => Tree.RowsPresenter?.BringIntoView(index),
+                () => CenterRow(index),
                 Avalonia.Threading.DispatcherPriority.Background);
     }
 
@@ -127,6 +127,22 @@ public partial class MainWindow : Window
 
     private void CollapseOneLevel_OnClick(object? sender, RoutedEventArgs e) =>
         ViewModel.CollapseOneLevel();
+
+    /// <summary>Holt eine Zeile in die Mitte des sichtbaren Bereichs.</summary>
+    private void CenterRow(int index)
+    {
+        Tree.RowsPresenter?.BringIntoView(index);
+        if (Tree.Scroll is not ScrollViewer scroll || Tree.TryGetRow(index) is not { } row)
+            return;
+
+        var rowHeight = row.Bounds.Height;
+        if (rowHeight <= 0)
+            return;
+
+        var wanted = index * rowHeight - (scroll.Viewport.Height - rowHeight) / 2;
+        var max = Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height);
+        scroll.Offset = new Avalonia.Vector(scroll.Offset.X, Math.Clamp(wanted, 0, max));
+    }
 
     private void CurrentLevel_OnClick(object? sender, RoutedEventArgs e) =>
         ViewModel.ReapplyCurrentLevel();
