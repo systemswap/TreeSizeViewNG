@@ -49,6 +49,9 @@ public static class Strings
     public static string ExpandLevelTip => T("Eine Ebene global ausklappen", "Expand one level everywhere");
     public static string TreeTitle => T("Ordner- und Dateistruktur", "Folder and file structure");
     public static string SortHint => T("Klick auf eine Spaltenüberschrift zum Sortieren", "Click a column header to sort");
+    public static string LevelWord => T("Ebene", "Level");
+    public static string CurrentLevelTip => T("Alle Ordner einheitlich auf diese Ebene setzen", "Set all folders to this level");
+    public static string MaximumLevelTip => T("Zu einem Eintrag der tiefsten Ebene springen", "Jump to an entry on the deepest level");
     public static string LevelNone => T("Ebene –", "Level –");
     public static string FormatLevel(int current, int max) => T($"Ebene {current} / {max}", $"Level {current} / {max}");
 

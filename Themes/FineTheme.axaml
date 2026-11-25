@@ -332,6 +332,18 @@
     <Setter Property="FontFeatures" Value="+tnum" />
   </Style>
 
+  <!-- Anklickbare Zahlen in "Ebene 12 / 23" -->
+  <Style Selector="Button.levelNumber">
+    <Setter Property="MinHeight" Value="18" />
+    <Setter Property="MinWidth" Value="22" />
+    <Setter Property="Padding" Value="5,0" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Background" Value="{DynamicResource Fine.CardBackground}" />
+  </Style>
+
   <!-- Baum etwas feiner -->
   <Style Selector="TreeDataGrid">
     <Setter Property="FontSize" Value="12" />

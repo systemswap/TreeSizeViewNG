@@ -14,7 +14,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = new MainWindowViewModel();
+        var viewModel = new MainWindowViewModel();
+        DataContext = viewModel;
+        // Gewählte Zeile nach Auf-/Zuklappen sichtbar halten (erst nach dem Layout der neuen Zeilen)
+        viewModel.ScrollToRowRequested += index =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(
+                () => Tree.RowsPresenter?.BringIntoView(index),
+                Avalonia.Threading.DispatcherPriority.Background);
     }
 
     /// <summary>Zeigt einen unerwarteten Fehler in der Statusleiste an (Details stehen im Log).</summary>
@@ -121,6 +127,12 @@ public partial class MainWindow : Window
 
     private void CollapseOneLevel_OnClick(object? sender, RoutedEventArgs e) =>
         ViewModel.CollapseOneLevel();
+
+    private void CurrentLevel_OnClick(object? sender, RoutedEventArgs e) =>
+        ViewModel.ReapplyCurrentLevel();
+
+    private void MaximumLevel_OnClick(object? sender, RoutedEventArgs e) =>
+        ViewModel.JumpToDeepest();
 
     // Doppelklick auf eine Ordnerzeile klappt sie auf bzw. zu
     private void Tree_OnDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e) =>

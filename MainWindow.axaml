@@ -173,10 +173,25 @@
                     CornerRadius="999"
                     Background="{DynamicResource Fine.AccentTint}"
                     VerticalAlignment="Center">
-              <TextBlock Text="{Binding ExpansionDepthText}"
-                         FontSize="11"
-                         FontWeight="SemiBold"
-                         Foreground="{DynamicResource Fine.OnSecondary}" />
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="{x:Static loc:Strings.LevelWord}"
+                           FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Fine.OnSecondary}" />
+                <Button Classes="levelNumber"
+                        Content="{Binding CurrentLevelText}"
+                        IsEnabled="{Binding CanUseLevelButtons}"
+                        Click="CurrentLevel_OnClick"
+                        AutomationProperties.AutomationId="CurrentLevel"
+                        ToolTip.Tip="{x:Static loc:Strings.CurrentLevelTip}" />
+                <TextBlock Text="/" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Fine.OnSecondary}" />
+                <Button Classes="levelNumber"
+                        Content="{Binding MaximumLevelText}"
+                        IsEnabled="{Binding CanUseLevelButtons}"
+                        Click="MaximumLevel_OnClick"
+                        AutomationProperties.AutomationId="MaximumLevel"
+                        ToolTip.Tip="{x:Static loc:Strings.MaximumLevelTip}" />
+              </StackPanel>
             </Border>
             <TextBlock Grid.Column="5"
                        Classes="hint"
@@ -187,6 +202,7 @@
         </Border>
 
         <TreeDataGrid Grid.Row="1"
+                      x:Name="Tree"
                       Source="{Binding Source}"
                       BorderThickness="0"
                       Background="{DynamicResource Fine.CardBackground}"

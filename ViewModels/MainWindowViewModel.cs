@@ -58,6 +58,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    /// <summary>Bittet die Ansicht, die Zeile mit diesem Index in den sichtbaren Bereich zu holen.</summary>
+    public event Action<int>? ScrollToRowRequested;
+
     public string FolderPath
     {
         get => _folderPath;
@@ -155,6 +158,44 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string ExpansionDepthText => _root is null
         ? Strings.LevelNone
         : Strings.FormatLevel(_currentExpansionDepth, _maximumExpansionDepth);
+
+    // Die beiden Zahlen in "Ebene 12 / 23" sind anklickbar
+    public string CurrentLevelText => _root is null ? "–" : _currentExpansionDepth.ToString();
+    public string MaximumLevelText => _root is null ? "–" : _maximumExpansionDepth.ToString();
+    public bool CanUseLevelButtons => CanInteract;
+
+    /// <summary>Klick auf die aktuelle Ebene: alle Ordner wieder einheitlich auf diese Ebene setzen.</summary>
+    public void ReapplyCurrentLevel() => SetExpansionLevel(_currentExpansionDepth);
+
+    /// <summary>
+    /// Klick auf die tiefste Ebene: klappt den Weg zu einem Eintrag der tiefsten Ebene auf
+    /// (bevorzugt eine Datei), wählt ihn aus und holt ihn in den sichtbaren Bereich.
+    /// </summary>
+    public void JumpToDeepest()
+    {
+        var root = _root;
+        if (!CanInteract || root is null)
+            return;
+
+        FolderNode deepest = root;
+        var stack = new Stack<FolderNode>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            if (_filterActive && !node.MatchesFilter)
+                continue;
+            if (node.Depth > deepest.Depth || (node.Depth == deepest.Depth && deepest.IsFolder && !node.IsFolder))
+                deepest = node;
+            foreach (var child in node.Children)
+                stack.Push(child);
+        }
+
+        for (var p = deepest.Parent; p is not null; p = p.Parent)
+            p.IsExpanded = true;
+        _selectedNode = deepest;
+        RefreshRows();
+    }
 
     public string SearchText
     {
@@ -366,7 +407,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var end = index + 1;
             while (end < _rows.Count && _rows[end].Depth > node.Depth)
                 end++;
+            // lag die Auswahl im zugeklappten Teil, geht sie auf den Ordner selbst über
+            var selectedIndex = _selectedNode is null ? -1 : _rows.IndexOf(_selectedNode, index + 1, end - index - 1);
             _rows.RemoveRange(index + 1, end - index - 1);
+            if (selectedIndex >= 0)
+                Select(node, index);
         }
         else
         {
@@ -433,11 +478,51 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             _rows = new RowList(rows);
             Source.Items = _rows;
-            var index = _selectedNode is null ? -1 : _rows.IndexOf(_selectedNode);
+
+            // Auswahl behalten; ist der Eintrag jetzt zugeklappt, den nächsten sichtbaren Ordner darüber wählen
+            var target = VisibleAncestorOrSelf(_selectedNode);
+            var index = target is null ? -1 : _rows.IndexOf(target);
             if (index >= 0 && Source.RowSelection is { } selection)
+            {
+                _selectedNode = target;
                 selection.SelectedIndex = index;
+                ScrollToRowRequested?.Invoke(index);
+            }
             else
+            {
                 _selectedNode = null;
+            }
+        }
+        finally
+        {
+            _suppressSelection = false;
+        }
+
+        NotifyExportScope();
+    }
+
+    /// <summary>Der Eintrag selbst, wenn alle Ordner über ihm aufgeklappt sind, sonst der oberste zugeklappte Ordner darüber.</summary>
+    private static FolderNode? VisibleAncestorOrSelf(FolderNode? node)
+    {
+        var visible = node;
+        for (var p = node?.Parent; p is not null; p = p.Parent)
+        {
+            if (!p.IsExpanded)
+                visible = p;
+        }
+        return visible;
+    }
+
+    private void Select(FolderNode node, int index)
+    {
+        if (Source.RowSelection is not { } selection)
+            return;
+
+        _suppressSelection = true;
+        try
+        {
+            _selectedNode = node;
+            selection.SelectedIndex = index;
         }
         finally
         {
@@ -856,6 +941,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(CanExpandOneLevel));
         OnPropertyChanged(nameof(CanCollapseOneLevel));
         OnPropertyChanged(nameof(ExpansionDepthText));
+        OnPropertyChanged(nameof(CurrentLevelText));
+        OnPropertyChanged(nameof(MaximumLevelText));
+        OnPropertyChanged(nameof(CanUseLevelButtons));
     }
 
     private bool Set<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

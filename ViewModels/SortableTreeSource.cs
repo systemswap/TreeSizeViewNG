@@ -43,6 +43,8 @@ public sealed class RowList : ObservableCollection<FolderNode>
     {
     }
 
+    public int IndexOf(FolderNode node, int start, int count) => ((List<FolderNode>)Items).IndexOf(node, start, count);
+
     public void InsertRange(int index, List<FolderNode> rows)
     {
         if (rows.Count == 0)
