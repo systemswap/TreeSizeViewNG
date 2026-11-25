@@ -1,4 +1,4 @@
-# Prüft, was die SOLIDWORKS-PDM-Schnittstelle auf diesem Rechner liefert – als Grundlage dafür, in
+﻿# Prüft, was die SOLIDWORKS-PDM-Schnittstelle auf diesem Rechner liefert – als Grundlage dafür, in
 # TreeSizeViewNG Tresor-Dateien ohne lokale Kopie anzuzeigen (Spalte "In Cloud").
 #
 # Das Skript LIEST nur: Registry-Einträge von PDM, die Anmeldung am Tresor über die PDM-Schnittstelle
@@ -48,7 +48,7 @@ while ($dir) {
     $attr = Try-Get { (Get-Item -LiteralPath $dir -Force).Attributes }
     $iniText = if (Test-Path -LiteralPath $ini) { ((Get-Content -LiteralPath $ini -ErrorAction SilentlyContinue) -join ' | ') } else { '-' }
     Say "  $dir  [Attribute: $attr]  desktop.ini: $iniText"
-    $parent = Split-Path -LiteralPath $dir -Parent
+    $parent = [IO.Path]::GetDirectoryName($dir)
     if (-not $parent -or $parent -eq $dir) { break }
     $dir = $parent
 }
@@ -66,7 +66,7 @@ else {
     # Tresor finden: Namen aus der Registry und Ordnernamen der Kette ausprobieren
     $candidates = New-Object System.Collections.Generic.List[string]
     $names | ForEach-Object { $candidates.Add($_) }
-    $d = $Path; while ($d) { $leaf = Split-Path -LiteralPath $d -Leaf; if ($leaf -and -not $candidates.Contains($leaf)) { $candidates.Add($leaf) }; $p = Split-Path -LiteralPath $d -Parent; if (-not $p -or $p -eq $d) { break }; $d = $p }
+    $d = $Path; while ($d) { $leaf = [IO.Path]::GetFileName($d); if ($leaf -and -not $candidates.Contains($leaf)) { $candidates.Add($leaf) }; $p = [IO.Path]::GetDirectoryName($d); if (-not $p -or $p -eq $d) { break }; $d = $p }
 
     $loggedIn = $false
     foreach ($name in $candidates) {
