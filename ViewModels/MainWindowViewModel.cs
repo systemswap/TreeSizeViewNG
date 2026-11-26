@@ -702,6 +702,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
+    /// Klick auf eine Führungslinie: wählt den Ordner, zu dem sie gehört, wie ein Klick auf seine Zeile – damit
+    /// ist die ganze Linie dieser Ebene hervorgehoben. Ohne Scrollen: Die Zeile des Ordners kann weit oben liegen,
+    /// die angeklickte Stelle bleibt im Blick.
+    /// </summary>
+    private void SelectGuideOwner(FolderNode owner)
+    {
+        var index = _rows.IndexOf(owner);
+        if (index >= 0)
+            Select(owner, index);
+    }
+
+    /// <summary>
     /// Während des Scans: zeigt den bisher gescannten Baum mit den bisher gezählten Größen – zunächst
     /// Stammordner und oberste Ebene; aufgeklappte Ordner zeigen ihren Inhalt, sobald er gescannt ist.
     /// Kinder werden für die Anzeige nach Größe sortiert (Kopie; die Daten gehören noch dem Scanner).
@@ -1108,7 +1120,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             // Einrückung mit Führungslinien je Ebene davor
             var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Stretch };
-            row.Children.Add(new IndentGuides(node));
+            row.Children.Add(new IndentGuides(node, SelectGuideOwner));
             row.Children.Add(panel);
             return row;
         });

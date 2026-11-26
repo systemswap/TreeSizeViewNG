@@ -52,6 +52,8 @@
   (Dokumente, Office, Bilder, Audio, Video, Archive, Abbilder, Programme, Quellcode, Datenbanken, Schriften …)
 - Einzelne Ordner jederzeit per Pfeil oder Doppelklick auf- und zuklappen; **− / +** über dem Baum setzt alle Ordner einheitlich eine Ebene
   höher bzw. tiefer (auch einzeln weiter aufgeklappte werden auf diese Ebene gebracht), dazu alles auf einmal auf- oder zuklappen
+- Führungslinien je Ebene: Die Linie des gewählten Ordners ist über alle Zeilen hervorgehoben. Ein Klick auf eine Linie wählt den
+  Ordner, zu dem sie gehört – damit ist die ganze Linie dieser Ebene hervorgehoben, ohne dass der Baum springt
 - Sortieren per Klick auf die Spaltenüberschrift: Zahlenspalten zuerst absteigend (größte zuerst), Namen in natürlicher
   Reihenfolge („Datei2“ vor „Datei10“), erneuter Klick dreht die Reihenfolge um
 - Helles und dunkles Design: folgt dem Betriebssystem, per Schalter oben rechts von Hand umschaltbar (die Wahl wird gemerkt)
