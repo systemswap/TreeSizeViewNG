@@ -120,8 +120,11 @@ jobs:
           if [ "${{ matrix.rid }}" = "win-x64" ]; then
             (cd out && 7z a -tzip -mx=5 "../pakete/TreeSizeViewNG-$VERSION-windows-x64.zip" TreeSizeViewNG.exe > /dev/null)
           else
-            chmod +x out/TreeSizeViewNG
-            tar -czf "pakete/TreeSizeViewNG-$VERSION-linux-x64.tar.gz" -C out TreeSizeViewNG
+            # Ordner TreeSizeViewNG/ mit Programm, Symbol und einrichten.sh/entfernen.sh für den Menüeintrag
+            mkdir -p linux/TreeSizeViewNG
+            install -m 0755 out/TreeSizeViewNG packaging/linux/einrichten.sh packaging/linux/entfernen.sh linux/TreeSizeViewNG/
+            install -m 0644 Assets/Icon.png linux/TreeSizeViewNG/treesizeviewng.png
+            tar -czf "pakete/TreeSizeViewNG-$VERSION-linux-x64.tar.gz" -C linux TreeSizeViewNG
           fi
           ls -la pakete
           gh release upload "v$VERSION" pakete/* --clobber

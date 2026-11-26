@@ -99,7 +99,11 @@ Unter [**Releases**](../../releases/latest) liegen fertige Pakete:
 | System | Datei | Start |
 |---|---|---|
 | Windows x64 | `TreeSizeViewNG-<Version>-windows-x64.zip` | entpacken, `TreeSizeViewNG.exe` starten |
-| Linux x64 | `TreeSizeViewNG-<Version>-linux-x64.tar.gz` | `tar -xzf TreeSizeViewNG-*-linux-x64.tar.gz && ./TreeSizeViewNG` |
+| Linux x64 | `TreeSizeViewNG-<Version>-linux-x64.tar.gz` | `tar -xzf TreeSizeViewNG-*-linux-x64.tar.gz && ./TreeSizeViewNG/TreeSizeViewNG` |
+
+**Linux: ins Anwendungsmenü eintragen** – einmal `./TreeSizeViewNG/einrichten.sh` ausführen (ohne Root-Rechte). Danach steht
+TreeSizeViewNG mit Symbol im Menü und in der Leiste. Wird der Ordner verschoben, das Skript erneut ausführen; rückgängig mit
+`./TreeSizeViewNG/entfernen.sh`.
 
 Die Pakete entstehen automatisch bei jedem Push auf `main`, der das Programm ändert (`.github/workflows/release.yml`; reine
 Änderungen an Startseite und Dokumentation erzeugen kein Release).
@@ -147,6 +151,8 @@ chmod +x publish-linux.sh   # einmalig, falls das Ausführungsrecht fehlt
 ```
 
 Ausgabe unter `publish/linux-x64/` bzw. `publish/windows-x64/`. Dieses Skript erzeugt (noch) eine komprimierte Einzeldatei.
+Unter Linux legt es `einrichten.sh`, `entfernen.sh` und das Symbol neben das Programm und trägt es gleich ins Anwendungsmenü
+ein (Vorlage der Skripte: `packaging/linux/`).
 
 ### Programmsymbol und Startseite
 

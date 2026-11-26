@@ -57,15 +57,28 @@ publish_target() {
       -p:DebugSymbols=false
 }
 
+# Menüeintrag für Linux: einrichten.sh/entfernen.sh und das Symbol neben das Programm legen.
+# Der Eintrag zeigt auf das Programm in diesem Ordner (GNOME zeigt das Symbol in der Leiste nur mit Eintrag).
+add_linux_menu_files() {
+    local output="$1"
+    install -m 0755 packaging/linux/einrichten.sh packaging/linux/entfernen.sh "$output/"
+    install -m 0644 Assets/Icon.png "$output/treesizeviewng.png"
+}
+
+linux_built=false
 case "$choice" in
     1)
         publish_target "linux-x64" "publish/linux-x64"
+        add_linux_menu_files "publish/linux-x64"
+        linux_built=true
         ;;
     2)
         publish_target "win-x64" "publish/windows-x64"
         ;;
     3)
         publish_target "linux-x64" "publish/linux-x64"
+        add_linux_menu_files "publish/linux-x64"
+        linux_built=true
         publish_target "win-x64" "publish/windows-x64"
         ;;
     *)
@@ -77,3 +90,9 @@ esac
 echo
 echo "Fertig. Ausgaben befinden sich unter:"
 echo "  $SCRIPT_DIR/publish"
+
+# Menüeintrag auf das neue Programm setzen (fester Pfad, ohne Root-Rechte).
+if $linux_built; then
+    echo
+    "$SCRIPT_DIR/publish/linux-x64/einrichten.sh"
+fi
