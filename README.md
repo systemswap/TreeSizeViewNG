@@ -43,7 +43,7 @@
   <img src="docs/bilder/hauptfenster-dunkel.png" width="49%" alt="Hauptfenster im dunklen Design mit Beispieldaten">
   <img src="docs/bilder/hauptfenster-hell.png" width="49%" alt="Hauptfenster im hellen Design mit Beispieldaten">
 </p>
-<p align="center"><sub>Dunkles und helles Design – folgt automatisch der Windows-Einstellung. Aufgenommen mit künstlich erzeugten Beispieldaten.</sub></p>
+<p align="center"><sub>Dunkles und helles Design, mit Führungslinien je Ebene und den Spalten „Lokal“, „In Cloud“ und „Gesamt“. Aufgenommen mit künstlich erzeugten Beispieldaten.</sub></p>
 
 ## Funktionen
 
